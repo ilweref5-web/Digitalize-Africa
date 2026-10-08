@@ -9,9 +9,12 @@ import {
   Download, 
   ExternalLink,
   Users,
-  Edit3
+  Edit3,
+  BarChart3,
+  Lock,
+  UserCheck
 } from 'lucide-react';
-import { MeetingConfig } from '../types';
+import { MeetingConfig, OrganizerUser } from '../types';
 
 interface HeaderProps {
   meeting: MeetingConfig;
@@ -19,6 +22,8 @@ interface HeaderProps {
   onOpenNotifications: () => void;
   onOpenSettings: () => void;
   onOpenQrEditor: () => void;
+  onOpenReporting: () => void;
+  onOpenLogin: () => void;
   onOpenRegistrationForm: () => void;
   onExportCsv: () => void;
   soundEnabled: boolean;
@@ -26,6 +31,7 @@ interface HeaderProps {
   unreadNotificationsCount?: number;
   viewMode: 'dashboard' | 'form';
   onSetViewMode: (mode: 'dashboard' | 'form') => void;
+  currentUser?: OrganizerUser | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNotifications,
   onOpenSettings,
   onOpenQrEditor,
+  onOpenReporting,
+  onOpenLogin,
   onOpenRegistrationForm,
   onExportCsv,
   soundEnabled,
@@ -41,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   unreadNotificationsCount = 0,
   viewMode,
   onSetViewMode,
+  currentUser,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-md">
@@ -62,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                Organizers: {meeting.organizerNames.join(', ')} • Alerts to Dave & Kenny
+                Organizers: David Nkwe &bull; Katlego Mathunywa &bull; Notifications Active
               </p>
             </div>
           </div>
@@ -101,6 +110,16 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
+            {/* Reports Suite Button */}
+            <button
+              onClick={onOpenReporting}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-emerald-500/40 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              title="Access Persistent Attendance & RSVP Reports"
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">Reports</span>
+            </button>
+
             {/* Edit QR Code Information */}
             <button
               onClick={onOpenQrEditor}
@@ -108,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Edit QR Code Destinations & Information"
             >
               <Edit3 className="w-4 h-4 text-indigo-400" />
-              <span className="hidden sm:inline">Edit QR Info</span>
+              <span className="hidden lg:inline">Edit QR</span>
             </button>
 
             {/* Stage / Projector Mode */}
@@ -119,6 +138,29 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Tv className="w-4 h-4 text-indigo-200" />
               <span className="hidden lg:inline">Screen Mode</span>
+            </button>
+
+            {/* Organizer Login / Account Badge */}
+            <button
+              onClick={onOpenLogin}
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                currentUser 
+                  ? 'bg-indigo-950/60 text-indigo-300 border-indigo-500/40 hover:bg-indigo-900/60' 
+                  : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700 hover:bg-slate-750'
+              }`}
+              title={currentUser ? `Logged in as ${currentUser.fullName} (${currentUser.username})` : 'Organizer Login (David Nkwe / Katlego Mathunywa)'}
+            >
+              {currentUser ? (
+                <>
+                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline">{currentUser.username}</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4 text-slate-400" />
+                  <span className="hidden sm:inline">Organizer Login</span>
+                </>
+              )}
             </button>
 
             {/* Email Notifications Center */}
@@ -146,15 +188,6 @@ export const Header: React.FC<HeaderProps> = ({
               title={soundEnabled ? 'Chime sound on registration: Enabled' : 'Chime sound: Muted'}
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
-
-            {/* Export CSV */}
-            <button
-              onClick={onExportCsv}
-              className="p-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors hidden sm:block cursor-pointer"
-              title="Download CSV of All Registrations"
-            >
-              <Download className="w-4 h-4" />
             </button>
 
             {/* Meeting Settings */}

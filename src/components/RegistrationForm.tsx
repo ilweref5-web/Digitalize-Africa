@@ -416,6 +416,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600" />
             </a>
           </div>
+
+          {/* Quick WhatsApp RSVP Option */}
+          <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-850 flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[11px] text-slate-500">Prefer WhatsApp?</span>
+            <a
+              href={`https://wa.me/27769775423?text=${encodeURIComponent(`Hello David Nkwe and Katlego Mathunywa, I would like to RSVP for the ${meeting.title}.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors"
+            >
+              <span>RSVP via WhatsApp Direct</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         {/* Form Body */}

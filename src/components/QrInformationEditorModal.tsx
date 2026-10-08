@@ -15,9 +15,11 @@ import {
   Eye, 
   Copy,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  MessageCircle,
+  Award
 } from 'lucide-react';
-import { MeetingConfig, QrCodeConfig, QrTargetMode } from '../types';
+import { MeetingConfig, QrCodeConfig, QrTargetMode, QrTheme } from '../types';
 
 interface QrInformationEditorModalProps {
   isOpen: boolean;
@@ -38,17 +40,22 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
     mode: 'registration_hub',
     qrTitle: 'Scan to Register & Access Portals',
     qrSubtitle: 'Compatible with any cell phone model, camera, or QR scanner app',
-    badgeText: 'Instant RSVP & Partner Portals',
+    badgeText: 'Exclusive Premium QR Code',
     customUrl: '',
     googleFormsUrl: meeting.googleFormsUrl || 'https://docs.google.com/forms/d/e/1FAIpQLScMeetingRSVP2026/viewform',
     eotofUrl: meeting.eotofUrl || 'https://www.eotof.co.za',
     damlogateUrl: meeting.damlogateUrl || 'https://www.damlogate.co.za',
+    whatsappNumber: '27769775423',
+    whatsappPrefillMessage: `Hello David Nkwe and Katlego Mathunywa, I am registering for the ${meeting.title}. Please confirm my attendance.`,
     showEotofLink: true,
     showDamlogateLink: true,
+    showWhatsAppLink: true,
     additionalInfo: 'Access www.eotof.co.za and www.damlogate.co.za directly upon scanning.',
     fgColor: '#0f172a',
     bgColor: '#ffffff',
+    qrTheme: 'executive_dark',
     errorCorrectionLevel: 'H',
+    useSharedDomain: true,
   });
 
   const [previewQrUrl, setPreviewQrUrl] = useState<string>('');
@@ -57,23 +64,28 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
-  // Compute what URL is encoded into the QR code based on selected mode
+  // Compute what URL is encoded into the QR code based on selected mode & domain
   const getEncodedUrl = (cfg: QrCodeConfig): string => {
-    const origin = window.location.origin;
-    if (cfg.mode === 'registration_hub') {
-      const url = new URL(origin);
+    const baseOrigin = cfg.useSharedDomain && meeting.sharedAppUrl ? meeting.sharedAppUrl : window.location.origin;
+
+    if (cfg.mode === 'whatsapp_direct') {
+      const phone = (cfg.whatsappNumber || '27769775423').replace(/[^0-9]/g, '');
+      const msg = encodeURIComponent(cfg.whatsappPrefillMessage || `Hello David Nkwe and Katlego Mathunywa, I would like to RSVP for: ${meeting.title}`);
+      return `https://wa.me/${phone}?text=${msg}`;
+    } else if (cfg.mode === 'registration_hub') {
+      const url = new URL(baseOrigin);
       url.searchParams.set('view', 'register');
       return url.toString();
     } else if (cfg.mode === 'google_form_direct') {
-      return cfg.googleFormsUrl || `${origin}?view=register`;
+      return cfg.googleFormsUrl || `${baseOrigin}?view=register`;
     } else if (cfg.mode === 'portal_links') {
-      const url = new URL(origin);
+      const url = new URL(baseOrigin);
       url.searchParams.set('view', 'portals');
       return url.toString();
     } else if (cfg.mode === 'custom_url') {
-      return cfg.customUrl || origin;
+      return cfg.customUrl || baseOrigin;
     }
-    return `${origin}?view=register`;
+    return `${baseOrigin}?view=register`;
   };
 
   // Re-generate live preview QR code whenever config changes
@@ -82,7 +94,7 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
     setResolvedEncodedUrl(encoded);
 
     QRCode.toDataURL(encoded, {
-      width: 400,
+      width: 440,
       margin: 2,
       color: {
         dark: config.fgColor || '#0f172a',
@@ -117,24 +129,38 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
+  const applyTheme = (theme: QrTheme) => {
+    if (theme === 'executive_dark') {
+      setConfig({ ...config, qrTheme: theme, fgColor: '#0f172a', bgColor: '#ffffff' });
+    } else if (theme === 'gold_obsidian') {
+      setConfig({ ...config, qrTheme: theme, fgColor: '#854d0e', bgColor: '#ffffff' });
+    } else if (theme === 'emerald_cyber') {
+      setConfig({ ...config, qrTheme: theme, fgColor: '#065f46', bgColor: '#ffffff' });
+    } else {
+      setConfig({ ...config, qrTheme: theme, fgColor: '#020617', bgColor: '#ffffff' });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-850">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md">
-              <QrIcon className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+              <Award className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                QR Code Information &amp; Content Editor
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold uppercase">
-                  Desktop Screen Mode
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">
+                  Exclusive Premium QR Code Generator &amp; Content Editor
+                </h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold uppercase">
+                  Production Verified
                 </span>
-              </h2>
+              </div>
               <p className="text-xs text-slate-400">
-                Customize destination links, partner portals (eotof.co.za &amp; damlogate.co.za), and displayed metadata.
+                Universal scannability across all phone makes/models with WhatsApp 1-tap integration and partner portals.
               </p>
             </div>
           </div>
@@ -158,7 +184,7 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {/* Mode 1 */}
+                {/* Mode 1: Registration Hub */}
                 <label className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                   config.mode === 'registration_hub'
                     ? 'bg-indigo-950/60 border-indigo-500 text-white font-medium shadow-sm'
@@ -176,11 +202,36 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
                     <span className="font-bold text-white">Full Registration Hub</span>
                   </div>
                   <p className="text-[11px] text-slate-400 pl-5">
-                    Google Form RSVP + Instant buttons for www.eotof.co.za &amp; www.damlogate.co.za
+                    Google Form RSVP + WhatsApp + Instant buttons for www.eotof.co.za &amp; www.damlogate.co.za
                   </p>
                 </label>
 
-                {/* Mode 2 */}
+                {/* Mode 2: WhatsApp Direct Link Option */}
+                <label className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                  config.mode === 'whatsapp_direct'
+                    ? 'bg-emerald-950/60 border-emerald-500 text-white font-medium shadow-sm'
+                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <input
+                      type="radio"
+                      name="qrMode"
+                      value="whatsapp_direct"
+                      checked={config.mode === 'whatsapp_direct'}
+                      onChange={() => setConfig({ ...config, mode: 'whatsapp_direct' })}
+                      className="text-emerald-600"
+                    />
+                    <span className="font-bold text-emerald-300 flex items-center gap-1">
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      WhatsApp Direct RSVP
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 pl-5">
+                    Opens WhatsApp immediately with pre-filled registration text to Dave or Katlego
+                  </p>
+                </label>
+
+                {/* Mode 3: Direct Google Form */}
                 <label className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                   config.mode === 'google_form_direct'
                     ? 'bg-purple-950/60 border-purple-500 text-white font-medium shadow-sm'
@@ -198,11 +249,11 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
                     <span className="font-bold text-white">Direct Google Form</span>
                   </div>
                   <p className="text-[11px] text-slate-400 pl-5">
-                    Opens external or dedicated Google Form URL directly on phone camera scan
+                    Opens external Google Form link directly upon smartphone scan
                   </p>
                 </label>
 
-                {/* Mode 3 */}
+                {/* Mode 4: Portals Landing */}
                 <label className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                   config.mode === 'portal_links'
                     ? 'bg-blue-950/60 border-blue-500 text-white font-medium shadow-sm'
@@ -220,232 +271,150 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
                     <span className="font-bold text-white">Partner Portals Hub</span>
                   </div>
                   <p className="text-[11px] text-slate-400 pl-5">
-                    Direct landing page focusing on www.eotof.co.za &amp; www.damlogate.co.za
-                  </p>
-                </label>
-
-                {/* Mode 4 */}
-                <label className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                  config.mode === 'custom_url'
-                    ? 'bg-emerald-950/60 border-emerald-500 text-white font-medium shadow-sm'
-                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <input
-                      type="radio"
-                      name="qrMode"
-                      value="custom_url"
-                      checked={config.mode === 'custom_url'}
-                      onChange={() => setConfig({ ...config, mode: 'custom_url' })}
-                      className="text-emerald-600"
-                    />
-                    <span className="font-bold text-white">Custom Target URL</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 pl-5">
-                    Directly encode any custom link into the QR code
+                    Multi-link portal focusing on www.eotof.co.za &amp; www.damlogate.co.za
                   </p>
                 </label>
               </div>
             </div>
 
-            {/* If Google Form Direct or Custom URL selected */}
-            {config.mode === 'google_form_direct' && (
-              <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/40 space-y-2">
-                <label className="block text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-purple-400" />
-                  Google Form Destination Link
-                </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://docs.google.com/forms/d/e/.../viewform"
-                  value={config.googleFormsUrl}
-                  onChange={(e) => setConfig({ ...config, googleFormsUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-purple-500/40 text-white font-mono focus:outline-none focus:border-purple-400"
-                />
-                <p className="text-[11px] text-purple-300/80">
-                  Tip: Standard form collects Full Name, Email, and Attendance Confirmation (Yes/No).
-                </p>
-              </div>
-            )}
-
-            {config.mode === 'custom_url' && (
-              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
+            {/* WhatsApp Options if WhatsApp Direct selected */}
+            {config.mode === 'whatsapp_direct' && (
+              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 space-y-3">
                 <label className="block text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-emerald-400" />
-                  Custom URL To Encode
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  WhatsApp Direct Recipient &amp; Message
                 </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://www.example.com"
-                  value={config.customUrl}
-                  onChange={(e) => setConfig({ ...config, customUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-emerald-500/40 text-white font-mono focus:outline-none focus:border-emerald-400"
-                />
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, whatsappNumber: '27769775423' })}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors ${
+                      config.whatsappNumber.includes('769775423')
+                        ? 'bg-emerald-900/60 border-emerald-400 text-white font-bold'
+                        : 'bg-slate-900 border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div>David Nkwe</div>
+                    <div className="text-[10px] text-emerald-400 font-mono">+27 76 977 5423</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, whatsappNumber: '27694977018' })}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors ${
+                      config.whatsappNumber.includes('694977018')
+                        ? 'bg-emerald-900/60 border-emerald-400 text-white font-bold'
+                        : 'bg-slate-900 border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div>Katlego Mathunywa</div>
+                    <div className="text-[10px] text-emerald-400 font-mono">+27 69 497 7018</div>
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-300 mb-1">Pre-filled WhatsApp Message:</label>
+                  <textarea
+                    rows={2}
+                    value={config.whatsappPrefillMessage}
+                    onChange={(e) => setConfig({ ...config, whatsappPrefillMessage: e.target.value })}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-emerald-500/40 text-white focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
               </div>
             )}
 
-            {/* 2. Partner Websites (www.eotof.co.za and www.damlogate.co.za) */}
-            <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-blue-400" />
-                  Shared Partner Portals (Cell Phone Accessible)
+            {/* 2. Global Domain Target (ais-pre vs Local) */}
+            <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 space-y-2">
+              <label className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-blue-400" />
+                Production Domain Target (Global Live Scan)
+              </label>
+              <div className="flex items-center gap-3 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-200">
+                  <input
+                    type="radio"
+                    name="domainMode"
+                    checked={config.useSharedDomain === true}
+                    onChange={() => setConfig({ ...config, useSharedDomain: true })}
+                    className="text-indigo-600"
+                  />
+                  <span>Live Production Shared URL (<strong>ais-pre</strong>)</span>
                 </label>
-                <span className="text-[10px] text-slate-400">Scanners will get these portals</span>
+                <label className="flex items-center gap-2 cursor-pointer text-slate-200">
+                  <input
+                    type="radio"
+                    name="domainMode"
+                    checked={config.useSharedDomain === false}
+                    onChange={() => setConfig({ ...config, useSharedDomain: false })}
+                    className="text-indigo-600"
+                  />
+                  <span>Current Origin</span>
+                </label>
               </div>
+              <p className="text-[11px] text-slate-400">
+                Target: {config.useSharedDomain ? meeting.sharedAppUrl : window.location.origin}
+              </p>
+            </div>
 
-              {/* Portal 1: www.eotof.co.za */}
-              <div className="space-y-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-200">Portal 1: EOTOF</span>
-                  <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.showEotofLink}
-                      onChange={(e) => setConfig({ ...config, showEotofLink: e.target.checked })}
-                      className="rounded text-indigo-600"
-                    />
-                    <span>Visible in mobile scan hub</span>
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
+            {/* 3. Partner Websites */}
+            <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 space-y-3">
+              <label className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-blue-400" />
+                Partner Portals (www.eotof.co.za &amp; www.damlogate.co.za)
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 block mb-1">EOTOF Portal</span>
                   <input
                     type="text"
                     value={config.eotofUrl}
                     onChange={(e) => setConfig({ ...config, eotofUrl: e.target.value })}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-slate-800 border border-slate-700 text-white font-mono focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-750 text-white font-mono text-xs"
                   />
-                  <a
-                    href={config.eotofUrl.startsWith('http') ? config.eotofUrl : `https://${config.eotofUrl}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg border border-slate-700"
-                    title="Open www.eotof.co.za"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
                 </div>
-              </div>
-
-              {/* Portal 2: www.damlogate.co.za */}
-              <div className="space-y-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-200">Portal 2: Damlogate</span>
-                  <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={config.showDamlogateLink}
-                      onChange={(e) => setConfig({ ...config, showDamlogateLink: e.target.checked })}
-                      className="rounded text-indigo-600"
-                    />
-                    <span>Visible in mobile scan hub</span>
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
+                <div>
+                  <span className="text-[11px] text-slate-400 block mb-1">Damlogate Portal</span>
                   <input
                     type="text"
                     value={config.damlogateUrl}
                     onChange={(e) => setConfig({ ...config, damlogateUrl: e.target.value })}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-slate-800 border border-slate-700 text-white font-mono focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-750 text-white font-mono text-xs"
                   />
-                  <a
-                    href={config.damlogateUrl.startsWith('http') ? config.damlogateUrl : `https://${config.damlogateUrl}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg border border-slate-700"
-                    title="Open www.damlogate.co.za"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
                 </div>
               </div>
             </div>
 
-            {/* 3. Text Visible on Desktop Screen Around QR */}
+            {/* 4. Exclusive Premium Themes */}
             <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 space-y-3">
               <label className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                Text Visible on Desktop Screen Around QR
+                <Palette className="w-4 h-4 text-amber-400" />
+                Exclusive Premium QR Code Theme
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Header Title</label>
-                  <input
-                    type="text"
-                    value={config.qrTitle}
-                    onChange={(e) => setConfig({ ...config, qrTitle: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-750 text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Top Badge Text</label>
-                  <input
-                    type="text"
-                    value={config.badgeText}
-                    onChange={(e) => setConfig({ ...config, badgeText: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-750 text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Subtitle / Scan Instructions</label>
-                <input
-                  type="text"
-                  value={config.qrSubtitle}
-                  onChange={(e) => setConfig({ ...config, qrSubtitle: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-750 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Bottom Notice</label>
-                <input
-                  type="text"
-                  value={config.additionalInfo}
-                  onChange={(e) => setConfig({ ...config, additionalInfo: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-750 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            {/* 4. Scanning Reliability & Appearance */}
-            <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 space-y-3">
-              <label className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-emerald-400" />
-                Screen Scanning Optimization
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Error Correction</label>
-                  <select
-                    value={config.errorCorrectionLevel}
-                    onChange={(e) => setConfig({ ...config, errorCorrectionLevel: e.target.value as any })}
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-750 text-white focus:outline-none"
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                {[
+                  { id: 'executive_dark', label: 'Executive Slate', fg: '#0f172a' },
+                  { id: 'gold_obsidian', label: 'Obsidian Gold', fg: '#854d0e' },
+                  { id: 'emerald_cyber', label: 'Emerald Cyber', fg: '#065f46' },
+                  { id: 'clean_white', label: 'Pure Studio', fg: '#020617' },
+                ].map((th) => (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={() => applyTheme(th.id as QrTheme)}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      config.qrTheme === th.id
+                        ? 'bg-indigo-950/70 border-indigo-500 font-bold text-white shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-slate-300'
+                    }`}
                   >
-                    <option value="H">High (30% redundancy - Best for desktop screens)</option>
-                    <option value="Q">Quartile (25% redundancy)</option>
-                    <option value="M">Medium (15% redundancy)</option>
-                    <option value="L">Low (7% redundancy)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">QR Foreground Color</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={config.fgColor}
-                      onChange={(e) => setConfig({ ...config, fgColor: e.target.value })}
-                      className="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer"
-                    />
-                    <span className="font-mono text-slate-300 text-[11px]">{config.fgColor}</span>
-                  </div>
-                </div>
+                    <div className="w-5 h-5 rounded-full mx-auto mb-1 border" style={{ backgroundColor: th.fg }} />
+                    <span className="text-[11px]">{th.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </form>
@@ -453,18 +422,18 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
           {/* Right Column: Live QR Code Preview (5 cols) */}
           <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
             <div className="p-5 rounded-2xl bg-slate-850 border border-slate-750 flex flex-col items-center text-center">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-3">
-                <Eye className="w-4 h-4" />
-                <span>Live Desktop Screen Preview</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 mb-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Exclusive Premium Scannable QR Code</span>
               </div>
 
               {/* The Rendered QR Code */}
-              <div className="relative p-4 bg-white rounded-2xl shadow-xl border-4 border-indigo-500/40 my-2">
+              <div className="relative p-5 bg-white rounded-3xl shadow-2xl border-4 border-amber-500/40 my-2">
                 {/* Targeting corners */}
-                <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-indigo-600"></div>
-                <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-indigo-600"></div>
-                <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-indigo-600"></div>
-                <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-indigo-600"></div>
+                <div className="absolute top-2 left-2 w-5 h-5 border-t-2 border-l-2 border-amber-600"></div>
+                <div className="absolute top-2 right-2 w-5 h-5 border-t-2 border-r-2 border-amber-600"></div>
+                <div className="absolute bottom-2 left-2 w-5 h-5 border-b-2 border-l-2 border-amber-600"></div>
+                <div className="absolute bottom-2 right-2 w-5 h-5 border-b-2 border-r-2 border-amber-600"></div>
 
                 {previewQrUrl ? (
                   <img
@@ -479,16 +448,16 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
                 )}
               </div>
 
-              {/* Cell Phone Compatibility Badge */}
+              {/* Verification & Compatibility Badge */}
               <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Compatible with all cell phone cameras</span>
+                <span>Any Phone Model &bull; Camera &bull; WhatsApp Ready</span>
               </div>
 
               {/* Encoded URL display & copy */}
               <div className="mt-3 w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-left">
                 <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                  <span>Encoded Link:</span>
+                  <span>Encoded Production Link:</span>
                   <button
                     type="button"
                     onClick={handleCopyLink}
@@ -514,31 +483,23 @@ export const QrInformationEditorModal: React.FC<QrInformationEditorModalProps> =
               </button>
             </div>
 
-            {/* Quick summary of what scanner receives */}
+            {/* Quick summary of features */}
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-2 text-slate-300">
               <span className="font-bold text-white block text-[11px] uppercase tracking-wider">
-                What Cell Phone Scanners Get:
+                Production Integrity &bull; Pure Secure QR:
               </span>
               <ul className="space-y-1 text-[11px] text-slate-400">
                 <li className="flex items-start gap-1.5">
                   <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Google Form Meeting Registration (Name, Email, Attendance Yes/No)</span>
+                  <span>30% Error Correction (Level H) for computer monitors &amp; glare</span>
                 </li>
-                {config.showEotofLink && (
-                  <li className="flex items-start gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                    <span>Direct portal access to <strong>www.eotof.co.za</strong></span>
-                  </li>
-                )}
-                {config.showDamlogateLink && (
-                  <li className="flex items-start gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                    <span>Direct portal access to <strong>www.damlogate.co.za</strong></span>
-                  </li>
-                )}
                 <li className="flex items-start gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
-                  <span>Automated alerts sent to Dave &amp; Kenny upon submission</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>Returns real production data across any device globally</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+                  <span>WhatsApp integration to David (+27 76 977 5423) &amp; Katlego (+27 69 497 7018)</span>
                 </li>
               </ul>
             </div>

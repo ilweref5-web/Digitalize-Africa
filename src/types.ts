@@ -1,6 +1,8 @@
 export type AttendanceStatus = 'in_person' | 'virtual' | 'declined';
 
-export type QrTargetMode = 'registration_hub' | 'google_form_direct' | 'portal_links' | 'custom_url';
+export type QrTargetMode = 'registration_hub' | 'google_form_direct' | 'portal_links' | 'custom_url' | 'whatsapp_direct';
+
+export type QrTheme = 'executive_dark' | 'emerald_cyber' | 'gold_obsidian' | 'clean_white';
 
 export interface QrCodeConfig {
   mode: QrTargetMode;
@@ -11,12 +13,17 @@ export interface QrCodeConfig {
   googleFormsUrl: string;
   eotofUrl: string;
   damlogateUrl: string;
+  whatsappNumber: string;
+  whatsappPrefillMessage: string;
   showEotofLink: boolean;
   showDamlogateLink: boolean;
+  showWhatsAppLink: boolean;
   additionalInfo: string;
   fgColor: string;
   bgColor: string;
+  qrTheme: QrTheme;
   errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
+  useSharedDomain?: boolean;
 }
 
 export interface MeetingConfig {
@@ -32,6 +39,8 @@ export interface MeetingConfig {
   googleFormsUrl?: string;
   eotofUrl: string;
   damlogateUrl: string;
+  whatsappNumber: string;
+  sharedAppUrl: string;
   qrConfig: QrCodeConfig;
 }
 
@@ -68,4 +77,24 @@ export interface NotificationRecord {
   attendance: string;
   sentAt: string;
   status: 'sent' | 'delivered';
+}
+
+export interface OrganizerUser {
+  id: string;
+  username: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  role: string;
+  avatarInitials: string;
+  lastLogin?: string;
+}
+
+export interface WhatsAppRobotStatus {
+  active: boolean;
+  botName: string;
+  engine: string;
+  dispatchedCount: number;
+  lastDispatchedAt?: string;
+  targetPhones: { name: string; phone: string }[];
 }

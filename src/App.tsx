@@ -9,7 +9,8 @@ import {
   Registration, 
   RegistrationStats, 
   NotificationRecord,
-  QrCodeConfig
+  QrCodeConfig,
+  OrganizerUser
 } from './types';
 import { Header } from './components/Header';
 import { StatsCards } from './components/StatsCards';
@@ -21,33 +22,44 @@ import { NotificationModal } from './components/NotificationModal';
 import { MeetingSettingsModal } from './components/MeetingSettingsModal';
 import { MobileSimulatorModal } from './components/MobileSimulatorModal';
 import { QrInformationEditorModal } from './components/QrInformationEditorModal';
+import { ReportingModal } from './components/ReportingModal';
+import { LoginModal } from './components/LoginModal';
+import { SharedLinkBanner } from './components/SharedLinkBanner';
+import { WhatsAppRobotBadge } from './components/WhatsAppRobotBadge';
 import { playNotificationChime } from './utils/audio';
 import { 
   Calendar, 
   Clock, 
   MapPin, 
-  PlusCircle,
-  Tv,
-  Edit3,
-  Globe,
-  ExternalLink,
-  Smartphone
+  Tv, 
+  Edit3, 
+  Globe, 
+  ExternalLink, 
+  Smartphone,
+  BarChart3,
+  ShieldCheck,
+  Lock,
+  UserCheck
 } from 'lucide-react';
+
+const SHARED_APP_URL = 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
 
 export default function App() {
   const [meeting, setMeeting] = useState<MeetingConfig>({
     title: 'Executive Strategic Planning & Operations Meeting 2026',
-    description: 'Quarterly all-hands briefing and departmental milestone review with leadership and project partners.',
+    description: 'Quarterly all-hands briefing and departmental milestone review with leadership, David Nkwe, and Katlego Mathunywa.',
     date: '2026-10-15',
     time: '10:00 AM - 12:30 PM (CAT / UTC+2)',
     location: 'Boardroom Suite A & Virtual Livestream',
     isVirtualAvailable: true,
     meetingLink: 'https://meet.google.com/ex-strat-2026',
-    notificationEmails: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
-    organizerNames: ['Dave Nkwe', 'Kenny Weeder'],
+    notificationEmails: ['dave.nkwe@gmail.com', 'Kenny.weeder71@gmail.com'],
+    organizerNames: ['David Nkwe', 'Katlego Mathunywa'],
     googleFormsUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScMeetingRSVP2026/viewform',
     eotofUrl: 'https://www.eotof.co.za',
     damlogateUrl: 'https://www.damlogate.co.za',
+    whatsappNumber: '27769775423',
+    sharedAppUrl: SHARED_APP_URL,
     qrConfig: {
       mode: 'registration_hub',
       qrTitle: 'Scan to Register & Access Portals',
@@ -59,10 +71,15 @@ export default function App() {
       damlogateUrl: 'https://www.damlogate.co.za',
       showEotofLink: true,
       showDamlogateLink: true,
+      showWhatsAppLink: true,
+      whatsappNumber: '27769775423',
+      whatsappPrefillMessage: 'Hello David Nkwe and Katlego Mathunywa, I am registering for the meeting. Please confirm my attendance.',
       additionalInfo: 'Access www.eotof.co.za and www.damlogate.co.za directly upon scanning.',
       fgColor: '#0f172a',
       bgColor: '#ffffff',
+      qrTheme: 'executive_dark',
       errorCorrectionLevel: 'H',
+      useSharedDomain: true,
     },
   });
 
@@ -84,7 +101,19 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMobileSimulatorOpen, setIsMobileSimulatorOpen] = useState(false);
   const [isQrEditorOpen, setIsQrEditorOpen] = useState(false);
+  const [isReportingModalOpen, setIsReportingModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Authenticated Organizer User (David Nkwe / Katlego Mathunywa)
+  const [currentUser, setCurrentUser] = useState<OrganizerUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('organizer_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Keep track of registration count for real-time sound alert
   const previousCountRef = useRef<number | null>(null);
@@ -211,7 +240,25 @@ export default function App() {
     window.open('/api/export/csv', '_blank');
   };
 
-  // If viewing attendee form (e.g., when scanned on any cell phone model)
+  const handleLoginSuccess = (user: OrganizerUser) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('organizer_user', JSON.stringify(user));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('organizer_user');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // If viewing standalone attendee form (e.g., when scanned on any cell phone model)
   if (viewMode === 'form') {
     return (
       <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-600 selection:text-white">
@@ -241,6 +288,8 @@ export default function App() {
         onOpenNotifications={() => setIsNotificationModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenQrEditor={() => setIsQrEditorOpen(true)}
+        onOpenReporting={() => setIsReportingModalOpen(true)}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
         onOpenRegistrationForm={() => setViewMode('form')}
         onExportCsv={handleExportCsv}
         soundEnabled={soundEnabled}
@@ -248,6 +297,7 @@ export default function App() {
         unreadNotificationsCount={notifications.length}
         viewMode={viewMode}
         onSetViewMode={setViewMode}
+        currentUser={currentUser}
       />
 
       {/* Main Dashboard Container */}
@@ -264,8 +314,14 @@ export default function App() {
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Sync (Polling Active)
+                  Persistent Storage Active
                 </span>
+                {currentUser && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Signed in: {currentUser.fullName} ({currentUser.username})</span>
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
@@ -295,11 +351,19 @@ export default function App() {
             {/* Quick Hero Actions */}
             <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
               <button
+                onClick={() => setIsReportingModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Executive Reports &amp; Audit</span>
+              </button>
+
+              <button
                 onClick={() => setIsQrEditorOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
               >
                 <Edit3 className="w-4 h-4" />
-                <span>Edit QR Code Information</span>
+                <span>Edit QR Information</span>
               </button>
 
               <button
@@ -307,15 +371,7 @@ export default function App() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
               >
                 <Tv className="w-4 h-4 text-indigo-400" />
-                <span>Open Screen Stage Mode</span>
-              </button>
-
-              <button
-                onClick={() => setIsMobileSimulatorOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
-              >
-                <Smartphone className="w-4 h-4 text-emerald-400" />
-                <span>Simulate Cell Phone Scan</span>
+                <span>Stage Mode</span>
               </button>
             </div>
           </div>
@@ -325,7 +381,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-indigo-400" />
               <span className="font-semibold text-slate-300">Shared in QR Code:</span>
-              <span className="text-slate-400">Cell phones scanning this screen also receive official partner portals</span>
+              <span className="text-slate-400">Cell phones scanning this screen receive official partner portals</span>
             </div>
             <div className="flex items-center gap-3">
               <a
@@ -350,6 +406,16 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* Live Shared URL Banner (ais-pre) with Persistent Storage Indicator */}
+        <SharedLinkBanner
+          sharedUrl={meeting.sharedAppUrl || SHARED_APP_URL}
+          totalSaved={registrations.length}
+          onOpenReporting={() => setIsReportingModalOpen(true)}
+        />
+
+        {/* Autonomous WhatsApp Background Automation Robot */}
+        <WhatsAppRobotBadge />
 
         {/* Real-time RSVP Metrics Cards */}
         <div>
@@ -378,20 +444,20 @@ export default function App() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-emerald-400" />
-                  Email Dispatch &amp; Portals
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  Authorized Custodians &amp; Alerts
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Active
+                  Live
                 </span>
               </div>
 
               <div>
                 <h3 className="text-base font-bold text-white">
-                  Automated Host Alerts
+                  Designated Organizers
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Every attendee registration sends automated RSVP alerts to:
+                  Notifications routed and administrative credentials provisioned for:
                 </p>
               </div>
 
@@ -403,8 +469,9 @@ export default function App() {
                       DN
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">Dave Nkwe</div>
-                      <div className="text-[11px] text-slate-400 font-mono">dave.nkwe@gmail.com</div>
+                      <div className="text-xs font-bold text-white">David Nkwe</div>
+                      <div className="text-[11px] text-slate-400 font-mono">+27 76 977 5423 &bull; dave.nkwe@gmail.com</div>
+                      <div className="text-[10px] text-indigo-400 font-mono mt-0.5">User ID: DaveN</div>
                     </div>
                   </div>
                   <span className="text-[10px] text-emerald-400 font-semibold">Ready</span>
@@ -412,12 +479,13 @@ export default function App() {
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-850 border border-slate-750">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs">
-                      KW
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xs">
+                      KM
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">Kenny Weeder</div>
-                      <div className="text-[11px] text-slate-400 font-mono">kenny.weeder71@gmail.com</div>
+                      <div className="text-xs font-bold text-white">Katlego Mathunywa</div>
+                      <div className="text-[11px] text-slate-400 font-mono">+27 69 497 7018 &bull; Kenny.weeder71@gmail.com</div>
+                      <div className="text-[10px] text-purple-400 font-mono mt-0.5">User ID: KatlegoM</div>
                     </div>
                   </div>
                   <span className="text-[10px] text-emerald-400 font-semibold">Ready</span>
@@ -455,18 +523,18 @@ export default function App() {
             {/* Bottom Actions inside Panel */}
             <div className="pt-4 border-t border-slate-800 flex items-center gap-2">
               <button
-                onClick={() => setIsNotificationModalOpen(true)}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                onClick={() => setIsReportingModalOpen(true)}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <span>View Alert Logs</span>
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Audit Reports</span>
               </button>
 
               <button
-                onClick={handleTriggerDigest}
-                className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
-                title="Send current summary digest to Dave & Kenny"
+                onClick={() => setIsNotificationModalOpen(true)}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
-                Send Digest
+                <span>Alert Logs</span>
               </button>
             </div>
           </div>
@@ -486,7 +554,7 @@ export default function App() {
       <footer className="border-t border-slate-800/80 bg-slate-950 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            Meeting RSVP &amp; QR Registration System &bull; Real-Time Tracking Dashboard
+            Meeting RSVP &amp; QR Registration System &bull; Persistent Storage at data/database.json
           </div>
           <div className="flex items-center gap-3">
             <a href={meeting.eotofUrl || 'https://www.eotof.co.za'} target="_blank" rel="noopener noreferrer" className="hover:underline text-indigo-400">
@@ -519,6 +587,23 @@ export default function App() {
         meeting={meeting}
         onSaveQrConfig={handleSaveQrConfig}
         onOpenMobileSimulator={() => setIsMobileSimulatorOpen(true)}
+      />
+
+      <ReportingModal
+        isOpen={isReportingModalOpen}
+        onClose={() => setIsReportingModalOpen(false)}
+        meeting={meeting}
+        stats={stats}
+        registrations={registrations}
+        currentUser={currentUser}
+      />
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       <NotificationModal

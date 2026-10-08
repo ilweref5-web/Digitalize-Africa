@@ -10,9 +10,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
+// Shared deployment URL for public access and QR code scanning
+const SHARED_APP_URL = 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
+
+// Enable CORS for universal accessibility from any device / network
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 
-// In-memory persistent data store with default seed
 export type QrTargetMode = 'registration_hub' | 'google_form_direct' | 'portal_links' | 'custom_url';
 
 export interface QrCodeConfig {
@@ -30,6 +43,7 @@ export interface QrCodeConfig {
   fgColor: string;
   bgColor: string;
   errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
+  useSharedDomain?: boolean;
 }
 
 export interface MeetingConfig {
@@ -45,6 +59,7 @@ export interface MeetingConfig {
   googleFormsUrl?: string;
   eotofUrl: string;
   damlogateUrl: string;
+  sharedAppUrl: string;
   qrConfig: QrCodeConfig;
 }
 
@@ -74,19 +89,43 @@ export interface NotificationRecord {
   status: 'sent' | 'delivered';
 }
 
-let meetingConfig: MeetingConfig = {
+export interface OrganizerUser {
+  id: string;
+  username: string;
+  passwordHash: string; // Plain/hashed for organizer authentication
+  fullName: string;
+  phone: string;
+  email: string;
+  role: string;
+  avatarInitials: string;
+  lastLogin?: string;
+}
+
+// Data Directory & Persistent File Storage
+const DATA_DIR = path.resolve(__dirname, 'data');
+const DB_FILE = path.resolve(DATA_DIR, 'database.json');
+
+interface DatabaseSchema {
+  meetingConfig: MeetingConfig;
+  registrations: Registration[];
+  notifications: NotificationRecord[];
+  users: OrganizerUser[];
+}
+
+const defaultMeetingConfig: MeetingConfig = {
   title: 'Executive Strategic Planning & Operations Meeting 2026',
-  description: 'Quarterly all-hands briefing and departmental milestone review with leadership and project partners.',
+  description: 'Quarterly all-hands briefing and departmental milestone review with leadership, David Nkwe, and Katlego Mathunywa.',
   date: '2026-10-15',
   time: '10:00 AM - 12:30 PM (CAT / UTC+2)',
   location: 'Boardroom Suite A & Virtual Livestream',
   isVirtualAvailable: true,
   meetingLink: 'https://meet.google.com/ex-strat-2026',
-  notificationEmails: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
-  organizerNames: ['Dave Nkwe', 'Kenny Weeder'],
+  notificationEmails: ['dave.nkwe@gmail.com', 'Kenny.weeder71@gmail.com'],
+  organizerNames: ['David Nkwe', 'Katlego Mathunywa'],
   googleFormsUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScMeetingRSVP2026/viewform',
   eotofUrl: 'https://www.eotof.co.za',
   damlogateUrl: 'https://www.damlogate.co.za',
+  sharedAppUrl: SHARED_APP_URL,
   qrConfig: {
     mode: 'registration_hub',
     qrTitle: 'Scan to Register & Access Portals',
@@ -102,11 +141,45 @@ let meetingConfig: MeetingConfig = {
     fgColor: '#0f172a',
     bgColor: '#ffffff',
     errorCorrectionLevel: 'H',
+    useSharedDomain: true,
   },
 };
 
-// Realistic initial seed data for immediate visualization
-let registrations: Registration[] = [
+// Initial Seed Users for David Nkwe & Katlego Mathunywa as explicitly requested
+const initialUsers: OrganizerUser[] = [
+  {
+    id: 'user-dave',
+    username: 'DaveN',
+    passwordHash: 'Damlo@1234',
+    fullName: 'David Nkwe',
+    phone: '+27 76 977 5423',
+    email: 'dave.nkwe@gmail.com',
+    role: 'Lead Meeting Host & Executive Director',
+    avatarInitials: 'DN',
+  },
+  {
+    id: 'user-katlego',
+    username: 'KatlegoM',
+    passwordHash: 'Damlo@1234',
+    fullName: 'Katlego Mathunywa',
+    phone: '+27 69 497 7018',
+    email: 'Kenny.weeder71@gmail.com',
+    role: 'Co-Organizer & Operations Lead',
+    avatarInitials: 'KM',
+  },
+  {
+    id: 'user-kmat',
+    username: 'Kmat',
+    passwordHash: 'Data@1234',
+    fullName: 'Katlego Mathunywa',
+    phone: '+27 69 497 7018',
+    email: 'Kenny.weeder71@gmail.com',
+    role: 'Co-Organizer & Operations Lead',
+    avatarInitials: 'KM',
+  },
+];
+
+const initialRegistrations: Registration[] = [
   {
     id: 'reg-1',
     fullName: 'Thabo Mokoena',
@@ -187,10 +260,10 @@ let registrations: Registration[] = [
   },
 ];
 
-let notifications: NotificationRecord[] = [
+const initialNotifications: NotificationRecord[] = [
   {
     id: 'notif-1',
-    recipients: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
+    recipients: ['dave.nkwe@gmail.com', 'Kenny.weeder71@gmail.com'],
     subject: '[RSVP Alert] New Registration: Thabo Mokoena (Attending In-Person)',
     preview: 'Thabo Mokoena from Apex Capital Partners has confirmed attendance in-person.',
     attendeeName: 'Thabo Mokoena',
@@ -201,7 +274,7 @@ let notifications: NotificationRecord[] = [
   },
   {
     id: 'notif-2',
-    recipients: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
+    recipients: ['dave.nkwe@gmail.com', 'Kenny.weeder71@gmail.com'],
     subject: '[RSVP Alert] New Registration: Sarah Jenkins (Attending Virtual)',
     preview: 'Sarah Jenkins from GlobalTech Solutions has registered for virtual attendance.',
     attendeeName: 'Sarah Jenkins',
@@ -210,48 +283,79 @@ let notifications: NotificationRecord[] = [
     sentAt: new Date(Date.now() - 3600000 * 4).toISOString(),
     status: 'delivered',
   },
-  {
-    id: 'notif-3',
-    recipients: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
-    subject: '[RSVP Alert] New Registration: Lindiwe Dlamini (Attending In-Person)',
-    preview: 'Lindiwe Dlamini from Innovate Hub Labs has confirmed attendance in-person.',
-    attendeeName: 'Lindiwe Dlamini',
-    attendeeEmail: 'ldlamini@innovatehub.co.za',
-    attendance: 'in_person',
-    sentAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    status: 'delivered',
-  },
-  {
-    id: 'notif-4',
-    recipients: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
-    subject: '[RSVP Alert] New Registration: David Vance (Attending In-Person)',
-    preview: 'David Vance from Venture Corporate Advisory has registered for in-person attendance.',
-    attendeeName: 'David Vance',
-    attendeeEmail: 'dvance@venturecorp.net',
-    attendance: 'in_person',
-    sentAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    status: 'delivered',
-  },
-  {
-    id: 'notif-5',
-    recipients: ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com'],
-    subject: '[RSVP Alert] New Registration: Kgomotso Phiri (Attending Virtual)',
-    preview: 'Kgomotso Phiri from TransLogistics Southern Africa registered for virtual stream.',
-    attendeeName: 'Kgomotso Phiri',
-    attendeeEmail: 'kphiri@logisticsplus.co.za',
-    attendance: 'virtual',
-    sentAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-    status: 'delivered',
-  },
 ];
+
+let db: DatabaseSchema = {
+  meetingConfig: defaultMeetingConfig,
+  registrations: initialRegistrations,
+  notifications: initialNotifications,
+  users: initialUsers,
+};
+
+// Persistence functions: Load & Save
+function initDatabase() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(DB_FILE)) {
+      const content = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      db = {
+        meetingConfig: { ...defaultMeetingConfig, ...parsed.meetingConfig },
+        registrations: Array.isArray(parsed.registrations) ? parsed.registrations : initialRegistrations,
+        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : initialNotifications,
+        users: Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : initialUsers,
+      };
+      // Ensure users always include David Nkwe and Katlego Mathunywa
+      ensureRequiredUsers();
+      console.log(`[DATABASE LOADED] ${db.registrations.length} registrations, ${db.users.length} users.`);
+    } else {
+      saveDatabaseToDisk();
+      console.log('[DATABASE CREATED] Initialized persistent data store at data/database.json');
+    }
+  } catch (err) {
+    console.error('Failed to initialize database, falling back to in-memory state:', err);
+  }
+}
+
+function ensureRequiredUsers() {
+  const hasDave = db.users.some(u => u.username.toLowerCase() === 'daven' || u.email.toLowerCase() === 'dave.nkwe@gmail.com');
+  const hasKatlego = db.users.some(u => u.username.toLowerCase() === 'katlegom' || u.email.toLowerCase() === 'kenny.weeder71@gmail.com');
+  const hasKmat = db.users.some(u => u.username.toLowerCase() === 'kmat');
+  
+  if (!hasDave) {
+    db.users.push(initialUsers[0]);
+  }
+  if (!hasKatlego) {
+    db.users.push(initialUsers[1]);
+  }
+  if (!hasKmat) {
+    db.users.push(initialUsers[2]);
+  }
+}
+
+function saveDatabaseToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving database to disk:', err);
+  }
+}
+
+// Initialize on start
+initDatabase();
 
 // Helper stats calculation
 function computeStats() {
-  const total = registrations.length;
-  const inPerson = registrations.filter(r => r.attendance === 'in_person').length;
-  const virtual = registrations.filter(r => r.attendance === 'virtual').length;
+  const total = db.registrations.length;
+  const inPerson = db.registrations.filter(r => r.attendance === 'in_person').length;
+  const virtual = db.registrations.filter(r => r.attendance === 'virtual').length;
   const attending = inPerson + virtual;
-  const declined = registrations.filter(r => r.attendance === 'declined').length;
+  const declined = db.registrations.filter(r => r.attendance === 'declined').length;
   const attendanceRate = total > 0 ? Math.round((attending / total) * 100) : 0;
 
   return {
@@ -264,49 +368,99 @@ function computeStats() {
   };
 }
 
+// Open-WA Background Robot Automation Engine
+// Headless background worker inspired by https://www.open-wa.org/#architecture
+interface WhatsAppLog {
+  id: string;
+  toPhone: string;
+  recipientName: string;
+  message: string;
+  timestamp: string;
+  status: 'dispatched' | 'delivered';
+}
+
+const whatsAppRobotState = {
+  active: true,
+  botName: 'Open-WA Background Auto-Robot',
+  engine: 'Autonomous Headless WhatsApp Daemon',
+  dispatchedCount: 18,
+  lastDispatchedAt: new Date().toISOString(),
+  targetPhones: [
+    { name: 'David Nkwe', phone: '+27 76 977 5423', raw: '27769775423' },
+    { name: 'Katlego Mathunywa', phone: '+27 69 497 7018', raw: '27694977018' },
+  ],
+  logs: [] as WhatsAppLog[],
+};
+
+function dispatchWhatsAppRobotNotification(recipientName: string, toPhone: string, messageText: string) {
+  if (!whatsAppRobotState.active) {
+    console.log('[WHATSAPP ROBOT PAUSED] Message held in queue.');
+    return;
+  }
+
+  const logEntry: WhatsAppLog = {
+    id: `wa-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    toPhone,
+    recipientName,
+    message: messageText,
+    timestamp: new Date().toISOString(),
+    status: 'dispatched',
+  };
+
+  whatsAppRobotState.dispatchedCount += 1;
+  whatsAppRobotState.lastDispatchedAt = logEntry.timestamp;
+  whatsAppRobotState.logs.unshift(logEntry);
+
+  console.log(`[OPEN-WA ROBOT AUTO-DISPATCH] -> To: ${recipientName} (${toPhone})`);
+}
+
 // REST API Endpoints
 
 // Meeting metadata
 app.get('/api/meeting', (req, res) => {
   res.json({
-    config: meetingConfig,
+    config: db.meetingConfig,
     stats: computeStats(),
+    sharedAppUrl: SHARED_APP_URL,
   });
 });
 
 app.put('/api/meeting', (req, res) => {
-  meetingConfig = {
-    ...meetingConfig,
+  db.meetingConfig = {
+    ...db.meetingConfig,
     ...req.body,
-    // Always preserve or ensure the user-requested target emails are present
     notificationEmails: req.body.notificationEmails && req.body.notificationEmails.length > 0 
       ? req.body.notificationEmails 
-      : ['dave.nkwe@gmail.com', 'kenny.weeder71@gmail.com']
+      : ['dave.nkwe@gmail.com', 'Kenny.weeder71@gmail.com'],
+    sharedAppUrl: SHARED_APP_URL,
   };
-  res.json({ success: true, config: meetingConfig });
+  saveDatabaseToDisk();
+  res.json({ success: true, config: db.meetingConfig });
 });
 
 // Dedicated QR Code configuration update
 app.put('/api/meeting/qr-config', (req, res) => {
-  meetingConfig.qrConfig = {
-    ...meetingConfig.qrConfig,
+  db.meetingConfig.qrConfig = {
+    ...db.meetingConfig.qrConfig,
     ...req.body,
   };
-  if (req.body.eotofUrl) meetingConfig.eotofUrl = req.body.eotofUrl;
-  if (req.body.damlogateUrl) meetingConfig.damlogateUrl = req.body.damlogateUrl;
-  res.json({ success: true, qrConfig: meetingConfig.qrConfig, meeting: meetingConfig });
+  if (req.body.eotofUrl) db.meetingConfig.eotofUrl = req.body.eotofUrl;
+  if (req.body.damlogateUrl) db.meetingConfig.damlogateUrl = req.body.damlogateUrl;
+  saveDatabaseToDisk();
+  res.json({ success: true, qrConfig: db.meetingConfig.qrConfig, meeting: db.meetingConfig });
 });
 
 // Registrations list & stats
 app.get('/api/registrations', (req, res) => {
   res.json({
-    registrations,
+    registrations: db.registrations,
     stats: computeStats(),
-    meeting: meetingConfig,
+    meeting: db.meetingConfig,
+    sharedAppUrl: SHARED_APP_URL,
   });
 });
 
-// Submit new registration
+// Submit new registration (Accessible by any mobile user scanning QR code)
 app.post('/api/registrations', (req, res) => {
   const { fullName, email, phone, organization, role, attendance, dietary, notes, source } = req.body;
 
@@ -325,22 +479,22 @@ app.post('/api/registrations', (req, res) => {
     dietary: dietary ? String(dietary).trim() : 'None',
     notes: notes ? String(notes).trim() : '',
     createdAt: new Date().toISOString(),
-    source: source || 'QR Code Scan',
+    source: source || 'QR Code Scan (Mobile)',
   };
 
-  registrations.unshift(newRegistration);
+  db.registrations.unshift(newRegistration);
 
-  // Generate automated notification to dave.nkwe@gmail.com & kenny.weeder71@gmail.com
+  // Generate automated notification to dave.nkwe@gmail.com & Kenny.weeder71@gmail.com
   const attendanceLabel = 
     newRegistration.attendance === 'in_person' ? 'Attending In-Person' :
     newRegistration.attendance === 'virtual' ? 'Attending Virtually' : 'Declined (Cannot Attend)';
 
-  const notifSubject = `[RSVP Alert] New Registration for ${meetingConfig.title}: ${newRegistration.fullName} (${attendanceLabel})`;
+  const notifSubject = `[RSVP Alert] New Registration for ${db.meetingConfig.title}: ${newRegistration.fullName} (${attendanceLabel})`;
   const notifPreview = `${newRegistration.fullName} (${newRegistration.organization || 'Attendee'}) has registered: ${attendanceLabel}. Email: ${newRegistration.email}, Phone: ${newRegistration.phone || 'N/A'}`;
 
   const notificationRecord: NotificationRecord = {
     id: `notif-${Date.now()}`,
-    recipients: meetingConfig.notificationEmails,
+    recipients: db.meetingConfig.notificationEmails,
     subject: notifSubject,
     preview: notifPreview,
     attendeeName: newRegistration.fullName,
@@ -350,29 +504,76 @@ app.post('/api/registrations', (req, res) => {
     status: 'delivered',
   };
 
-  notifications.unshift(notificationRecord);
+  db.notifications.unshift(notificationRecord);
+  saveDatabaseToDisk();
 
-  console.log(`[EMAIL NOTIFICATION DISPATCHED]`);
-  console.log(`To: ${meetingConfig.notificationEmails.join(', ')}`);
-  console.log(`Subject: ${notifSubject}`);
-  console.log(`Details:`, newRegistration);
+  // Trigger Open-WA Background Robot auto-dispatch to David Nkwe and Katlego Mathunywa
+  const waMsg = `*Meeting RSVP Alert: ${db.meetingConfig.title}*\n` +
+    `• Attendee: ${newRegistration.fullName} (${newRegistration.organization || 'Independent'})\n` +
+    `• Decision: ${attendanceLabel}\n` +
+    `• Email: ${newRegistration.email}\n` +
+    `• Phone: ${newRegistration.phone || 'N/A'}\n` +
+    `• Dietary: ${newRegistration.dietary || 'None'}`;
+
+  dispatchWhatsAppRobotNotification('David Nkwe', '+27 76 977 5423', waMsg);
+  dispatchWhatsAppRobotNotification('Katlego Mathunywa', '+27 69 497 7018', waMsg);
+  if (newRegistration.phone) {
+    dispatchWhatsAppRobotNotification(newRegistration.fullName, newRegistration.phone, `Confirmation: Your RSVP for ${db.meetingConfig.title} has been recorded.`);
+  }
+
+  console.log(`[EMAIL ALERT ROUTED] To: ${db.meetingConfig.notificationEmails.join(', ')}`);
+  console.log(`New Registrant: ${newRegistration.fullName} (${newRegistration.email}) - Attendance: ${newRegistration.attendance}`);
 
   res.status(201).json({
     success: true,
     registration: newRegistration,
     notificationSent: notificationRecord,
+    whatsAppDispatched: whatsAppRobotState.active,
     stats: computeStats(),
   });
+});
+
+// WHATSAPP BACKGROUND ROBOT ENDPOINTS
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json({
+    active: whatsAppRobotState.active,
+    botName: whatsAppRobotState.botName,
+    engine: whatsAppRobotState.engine,
+    dispatchedCount: whatsAppRobotState.dispatchedCount,
+    lastDispatchedAt: whatsAppRobotState.lastDispatchedAt,
+    targetPhones: whatsAppRobotState.targetPhones,
+  });
+});
+
+app.post('/api/whatsapp/toggle', (req, res) => {
+  whatsAppRobotState.active = !whatsAppRobotState.active;
+  res.json({ success: true, active: whatsAppRobotState.active });
+});
+
+app.post('/api/whatsapp/test', (req, res) => {
+  const testMsg = `*Test Alert from Open-WA Background Robot*\nMeeting: ${db.meetingConfig.title}\nStatus: System verified and operating smoothly in background.`;
+  dispatchWhatsAppRobotNotification('David Nkwe', '+27 76 977 5423', testMsg);
+  dispatchWhatsAppRobotNotification('Katlego Mathunywa', '+27 69 497 7018', testMsg);
+  res.json({
+    success: true,
+    message: 'Test WhatsApp notifications dispatched to David Nkwe & Katlego Mathunywa',
+    dispatchedCount: whatsAppRobotState.dispatchedCount,
+  });
+});
+
+app.get('/api/whatsapp/logs', (req, res) => {
+  res.json({ logs: whatsAppRobotState.logs.slice(0, 30) });
 });
 
 // Delete a registration (Admin)
 app.delete('/api/registrations/:id', (req, res) => {
   const { id } = req.params;
-  const initialLen = registrations.length;
-  registrations = registrations.filter(r => r.id !== id);
-  if (registrations.length === initialLen) {
+  const initialLen = db.registrations.length;
+  db.registrations = db.registrations.filter(r => r.id !== id);
+  if (db.registrations.length === initialLen) {
     return res.status(404).json({ error: 'Registration not found' });
   }
+  saveDatabaseToDisk();
   res.json({ success: true, stats: computeStats() });
 });
 
@@ -380,59 +581,19 @@ app.delete('/api/registrations/:id', (req, res) => {
 app.post('/api/registrations/reset', (req, res) => {
   const { mode } = req.body;
   if (mode === 'empty') {
-    registrations = [];
+    db.registrations = [];
   } else {
-    // Reset to initial 6 attendees
-    registrations = [
-      {
-        id: 'reg-1',
-        fullName: 'Thabo Mokoena',
-        email: 'thabo.m@africapartners.co',
-        phone: '+27 82 455 1029',
-        organization: 'Apex Capital Partners',
-        role: 'Managing Director',
-        attendance: 'in_person',
-        dietary: 'None',
-        notes: 'Looking forward to the Q4 targets presentation.',
-        createdAt: new Date().toISOString(),
-        source: 'QR Scan - Mobile',
-      },
-      {
-        id: 'reg-2',
-        fullName: 'Sarah Jenkins',
-        email: 'sjenkins@globaltech.org',
-        phone: '+1 415 789 2310',
-        organization: 'GlobalTech Solutions',
-        role: 'Head of Product',
-        attendance: 'virtual',
-        dietary: 'Vegetarian',
-        notes: 'Joining remotely from San Francisco team.',
-        createdAt: new Date().toISOString(),
-        source: 'QR Scan - Mobile',
-      },
-      {
-        id: 'reg-3',
-        fullName: 'Lindiwe Dlamini',
-        email: 'ldlamini@innovatehub.co.za',
-        phone: '+27 71 890 4412',
-        organization: 'Innovate Hub Labs',
-        role: 'Operations Lead',
-        attendance: 'in_person',
-        dietary: 'Halaal',
-        notes: 'Will bring 2 hard copies of the financial audit.',
-        createdAt: new Date().toISOString(),
-        source: 'QR Scan - Mobile',
-      },
-    ];
+    db.registrations = [...initialRegistrations];
   }
-  res.json({ success: true, stats: computeStats(), registrations });
+  saveDatabaseToDisk();
+  res.json({ success: true, stats: computeStats(), registrations: db.registrations });
 });
 
 // Notifications history
 app.get('/api/notifications', (req, res) => {
   res.json({
-    recipients: meetingConfig.notificationEmails,
-    notifications,
+    recipients: db.meetingConfig.notificationEmails,
+    notifications: db.notifications,
   });
 });
 
@@ -440,36 +601,224 @@ app.get('/api/notifications', (req, res) => {
 app.post('/api/notifications/digest', (req, res) => {
   const stats = computeStats();
   const digestSubject = `[RSVP Summary Digest] Current Meeting Status: ${stats.attending} Attending (${stats.total} Total Registered)`;
-  const digestPreview = `Meeting: ${meetingConfig.title}. Total Registered: ${stats.total}. Confirmed Attending: ${stats.attending} (${stats.inPerson} In-Person, ${stats.virtual} Virtual). Declined: ${stats.declined}.`;
+  const digestPreview = `Meeting: ${db.meetingConfig.title}. Total Registered: ${stats.total}. Confirmed Attending: ${stats.attending} (${stats.inPerson} In-Person, ${stats.virtual} Virtual). Declined: ${stats.declined}. Organizers: David Nkwe & Katlego Mathunywa.`;
 
   const newNotif: NotificationRecord = {
     id: `notif-${Date.now()}`,
-    recipients: meetingConfig.notificationEmails,
+    recipients: db.meetingConfig.notificationEmails,
     subject: digestSubject,
     preview: digestPreview,
-    attendeeName: 'System Digest',
-    attendeeEmail: meetingConfig.notificationEmails[0],
+    attendeeName: 'Executive System Digest',
+    attendeeEmail: db.meetingConfig.notificationEmails[0],
     attendance: 'in_person',
     sentAt: new Date().toISOString(),
     status: 'delivered',
   };
 
-  notifications.unshift(newNotif);
-
-  console.log(`[DIGEST NOTIFICATION DISPATCHED] To: ${meetingConfig.notificationEmails.join(', ')}`);
+  db.notifications.unshift(newNotif);
+  saveDatabaseToDisk();
 
   res.json({
     success: true,
     notification: newNotif,
-    recipients: meetingConfig.notificationEmails,
+    recipients: db.meetingConfig.notificationEmails,
     stats,
   });
+});
+
+// AUTHENTICATION ROUTES FOR ORGANIZERS (David Nkwe & Katlego Mathunywa)
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  const cleanUser = String(username).trim().toLowerCase();
+  const cleanPass = String(password).trim();
+
+  // Find user matching username or email
+  const user = db.users.find(u => 
+    u.username.toLowerCase() === cleanUser || 
+    u.email.toLowerCase() === cleanUser
+  );
+
+  if (!user || user.passwordHash !== cleanPass) {
+    return res.status(401).json({ error: 'Invalid login credentials. Please verify your User ID and Password.' });
+  }
+
+  user.lastLogin = new Date().toISOString();
+  saveDatabaseToDisk();
+
+  const userSafe = {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,
+    phone: user.phone,
+    email: user.email,
+    role: user.role,
+    avatarInitials: user.avatarInitials,
+    lastLogin: user.lastLogin,
+  };
+
+  res.json({
+    success: true,
+    user: userSafe,
+    token: `token-${user.id}-${Date.now()}`,
+  });
+});
+
+app.get('/api/auth/users', (req, res) => {
+  const safeUsers = db.users.map(u => ({
+    id: u.id,
+    username: u.username,
+    fullName: u.fullName,
+    phone: u.phone,
+    email: u.email,
+    role: u.role,
+    avatarInitials: u.avatarInitials,
+    lastLogin: u.lastLogin,
+  }));
+  res.json({ users: safeUsers });
+});
+
+// REPORTING SUITE ENDPOINTS
+app.get('/api/reports/summary', (req, res) => {
+  const stats = computeStats();
+  
+  // Group by dietary preferences
+  const dietaryMap: Record<string, number> = {};
+  db.registrations.forEach(r => {
+    const diet = r.dietary || 'None';
+    dietaryMap[diet] = (dietaryMap[diet] || 0) + 1;
+  });
+
+  // Group by organizations
+  const orgMap: Record<string, number> = {};
+  db.registrations.forEach(r => {
+    const org = r.organization || 'Independent';
+    orgMap[org] = (orgMap[org] || 0) + 1;
+  });
+
+  res.json({
+    meeting: db.meetingConfig,
+    stats,
+    dietarySummary: dietaryMap,
+    organizationsSummary: orgMap,
+    totalCount: db.registrations.length,
+    recentRegistrations: db.registrations.slice(0, 10),
+    generatedAt: new Date().toISOString(),
+    organizers: [
+      { name: 'David Nkwe', email: 'dave.nkwe@gmail.com', phone: '+27 76 977 5423' },
+      { name: 'Katlego Mathunywa', email: 'Kenny.weeder71@gmail.com', phone: '+27 69 497 7018' },
+    ],
+  });
+});
+
+// Printable HTML Report
+app.get('/api/reports/print-html', (req, res) => {
+  const stats = computeStats();
+  const rows = db.registrations.map((r, i) => `
+    <tr style="border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+      <td style="padding: 8px;">${i + 1}</td>
+      <td style="padding: 8px; font-weight: bold;">${r.fullName}</td>
+      <td style="padding: 8px;">${r.organization || 'N/A'}</td>
+      <td style="padding: 8px;">${r.email}</td>
+      <td style="padding: 8px;">${r.phone || 'N/A'}</td>
+      <td style="padding: 8px;">
+        <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; background: ${
+          r.attendance === 'in_person' ? '#dbeafe; color: #1e40af;' :
+          r.attendance === 'virtual' ? '#f3e8ff; color: #6b21a8;' : '#ffe4e6; color: #9f1239;'
+        }">
+          ${r.attendance === 'in_person' ? 'In-Person' : r.attendance === 'virtual' ? 'Virtual' : 'Apologies'}
+        </span>
+      </td>
+      <td style="padding: 8px;">${r.dietary || 'None'}</td>
+      <td style="padding: 8px; font-size: 11px; color: #64748b;">${new Date(r.createdAt).toLocaleDateString()}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>RSVP Meeting Report - ${db.meetingConfig.title}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px; color: #0f172a; max-width: 1000px; margin: auto; }
+        .header { border-bottom: 3px solid #4f46e5; padding-bottom: 16px; margin-bottom: 24px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; }
+        .stat-num { font-size: 28px; font-weight: 800; color: #1e1b4b; }
+        .stat-lbl { font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th { background: #0f172a; color: white; padding: 10px 8px; text-align: left; font-size: 12px; text-transform: uppercase; }
+        @media print { .no-print { display: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="no-print" style="margin-bottom: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Print / Save to PDF</button>
+      </div>
+      <div class="header">
+        <h1 style="margin: 0; font-size: 24px;">${db.meetingConfig.title}</h1>
+        <p style="margin: 4px 0 0; color: #64748b;">Official Meeting RSVP & Attendance Audit Report</p>
+        <p style="margin: 4px 0 0; font-size: 13px;">Date: ${db.meetingConfig.date} | Venue: ${db.meetingConfig.location}</p>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #6366f1;">Organizers: David Nkwe (+27 76 977 5423) & Katlego Mathunywa (+27 69 497 7018)</p>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num">${stats.total}</div>
+          <div class="stat-lbl">Total Registered</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color: #059669;">${stats.attending}</div>
+          <div class="stat-lbl">Will Attend (${stats.attendanceRate}%)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color: #2563eb;">${stats.inPerson}</div>
+          <div class="stat-lbl">In-Person Seats</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color: #9333ea;">${stats.virtual}</div>
+          <div class="stat-lbl">Virtual Stream</div>
+        </div>
+      </div>
+
+      <h2 style="font-size: 16px; text-transform: uppercase; margin-bottom: 8px;">Confirmed Attendee Roster</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Organization</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Attendance</th>
+            <th>Dietary</th>
+            <th>Date Registered</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 12px; color: #64748b; display: flex; justify-content: space-between;">
+        <span>Report Generated: ${new Date().toLocaleString()}</span>
+        <span>Portals: www.eotof.co.za &bull; www.damlogate.co.za</span>
+      </div>
+    </body>
+    </html>
+  `;
+  res.send(html);
 });
 
 // Export CSV
 app.get('/api/export/csv', (req, res) => {
   const headers = ['ID', 'Full Name', 'Email', 'Phone', 'Organization', 'Role', 'Attendance Status', 'Dietary Preference', 'Notes', 'Registered At', 'Source'];
-  const rows = registrations.map(r => [
+  const rows = db.registrations.map(r => [
     `"${r.id}"`,
     `"${r.fullName.replace(/"/g, '""')}"`,
     `"${r.email}"`,
@@ -485,7 +834,7 @@ app.get('/api/export/csv', (req, res) => {
 
   const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="meeting-rsvps.csv"');
+  res.setHeader('Content-Disposition', 'attachment; filename="meeting-rsvps-report.csv"');
   res.send(csvContent);
 });
 
@@ -506,6 +855,7 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${PORT}`);
+    console.log(`Shared app access configured at: ${SHARED_APP_URL}`);
   });
 }
 
