@@ -24,11 +24,12 @@ import { MobileSimulatorModal } from './components/MobileSimulatorModal';
 import { QrInformationEditorModal } from './components/QrInformationEditorModal';
 import { ReportingModal } from './components/ReportingModal';
 import { LoginModal } from './components/LoginModal';
+import { MeetingCalendar } from './components/MeetingCalendar';
 import { SharedLinkBanner } from './components/SharedLinkBanner';
 import { WhatsAppRobotBadge } from './components/WhatsAppRobotBadge';
 import { playNotificationChime } from './utils/audio';
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Clock, 
   MapPin, 
   Tv, 
@@ -39,7 +40,8 @@ import {
   BarChart3,
   ShieldCheck,
   Lock,
-  UserCheck
+  UserCheck,
+  LogOut
 } from 'lucide-react';
 
 const SHARED_APP_URL = 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
@@ -91,11 +93,14 @@ export default function App() {
     virtual: 0,
     declined: 0,
     attendanceRate: 0,
+    registeredToVoteYes: 0,
+    registeredToVoteNo: 0,
+    registeredToVoteRate: 0,
   });
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
 
   // Navigation & Modals
-  const [viewMode, setViewMode] = useState<'dashboard' | 'form'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'calendar' | 'form' | 'login'>('dashboard');
   const [isStageModeOpen, setIsStageModeOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -121,8 +126,13 @@ export default function App() {
   // Check URL query parameters: if ?view=register or ?view=portals, open registration/portal view directly
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('view') === 'register' || params.get('view') === 'form' || params.get('view') === 'portals') {
+    const viewParam = params.get('view');
+    if (viewParam === 'register' || viewParam === 'form' || viewParam === 'portals') {
       setViewMode('form');
+    } else if (viewParam === 'calendar') {
+      setViewMode('calendar');
+    } else if (viewParam === 'login' || params.get('login') === 'true') {
+      setViewMode('login');
     }
   }, []);
 
@@ -140,6 +150,9 @@ export default function App() {
           virtual: 0,
           declined: 0,
           attendanceRate: 0,
+          registeredToVoteYes: 0,
+          registeredToVoteNo: 0,
+          registeredToVoteRate: 0,
         });
         if (data.meeting) {
           setMeeting(data.meeting);
@@ -268,13 +281,118 @@ export default function App() {
             fetchData();
           }}
           onBackToDashboard={() => {
-            // Update URL query parameter
             const url = new URL(window.location.href);
             url.searchParams.delete('view');
             window.history.pushState({}, '', url.toString());
             setViewMode('dashboard');
           }}
         />
+      </div>
+    );
+  }
+
+  // If viewing standalone meeting calendar
+  if (viewMode === 'calendar') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+        <Header
+          meeting={meeting}
+          onOpenStageMode={() => setIsStageModeOpen(true)}
+          onOpenNotifications={() => setIsNotificationModalOpen(true)}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenQrEditor={() => setIsQrEditorOpen(true)}
+          onOpenReporting={() => setIsReportingModalOpen(true)}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
+          onOpenRegistrationForm={() => setViewMode('form')}
+          onExportCsv={handleExportCsv}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled(!soundEnabled)}
+          unreadNotificationsCount={notifications.length}
+          viewMode={viewMode}
+          onSetViewMode={setViewMode}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('view');
+                window.history.pushState({}, '', url.toString());
+                setViewMode('dashboard');
+              }}
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer"
+            >
+              &larr; Back to Meeting Dashboard
+            </button>
+            <span className="text-xs text-slate-400">
+              Synchronized meeting dates &bull; CAT / UTC+2
+            </span>
+          </div>
+          <MeetingCalendar
+            meeting={meeting}
+            registrations={registrations}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  // If viewing standalone organizer login landing screen
+  if (viewMode === 'login') {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+        <Header
+          meeting={meeting}
+          onOpenStageMode={() => setIsStageModeOpen(true)}
+          onOpenNotifications={() => setIsNotificationModalOpen(true)}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenQrEditor={() => setIsQrEditorOpen(true)}
+          onOpenReporting={() => setIsReportingModalOpen(true)}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
+          onOpenRegistrationForm={() => setViewMode('form')}
+          onExportCsv={handleExportCsv}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled(!soundEnabled)}
+          unreadNotificationsCount={notifications.length}
+          viewMode={viewMode}
+          onSetViewMode={setViewMode}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+          <div className="w-full max-w-[480px] mb-3 flex items-center justify-between">
+            <button
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('view');
+                window.history.pushState({}, '', url.toString());
+                setViewMode('dashboard');
+              }}
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+            >
+              &larr; Back to Meeting Dashboard
+            </button>
+            <span className="text-xs text-slate-400">Organizer Landing Portal</span>
+          </div>
+          <LoginModal
+            isOpen={true}
+            isLandingPage={true}
+            onClose={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('view');
+              window.history.pushState({}, '', url.toString());
+              setViewMode('dashboard');
+            }}
+            onLoginSuccess={(u) => {
+              handleLoginSuccess(u);
+              setViewMode('dashboard');
+            }}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+        </main>
       </div>
     );
   }
@@ -298,6 +416,7 @@ export default function App() {
         viewMode={viewMode}
         onSetViewMode={setViewMode}
         currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Dashboard Container */}
@@ -317,10 +436,20 @@ export default function App() {
                   Persistent Storage Active
                 </span>
                 {currentUser && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Signed in: {currentUser.fullName} ({currentUser.username})</span>
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Signed in: {currentUser.fullName} ({currentUser.username})</span>
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Log-off session"
+                    >
+                      <LogOut className="w-3 h-3 text-rose-400" />
+                      <span>Log-off</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -334,7 +463,7 @@ export default function App() {
 
               <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-300">
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-indigo-400" />
+                  <CalendarIcon className="w-4 h-4 text-indigo-400" />
                   {meeting.date}
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -356,6 +485,14 @@ export default function App() {
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>Executive Reports &amp; Audit</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('calendar')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+              >
+                <CalendarIcon className="w-4 h-4" />
+                <span>Event Calendar</span>
               </button>
 
               <button
@@ -538,6 +675,14 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Event Calendar & Schedule */}
+        <div id="calendar-section" className="scroll-mt-24">
+          <MeetingCalendar
+            meeting={meeting}
+            registrations={registrations}
+          />
         </div>
 
         {/* Full Attendees Live Roster */}

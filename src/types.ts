@@ -52,6 +52,7 @@ export interface Registration {
   organization: string;
   role?: string;
   attendance: AttendanceStatus;
+  registeredToVote?: 'Yes' | 'No';
   dietary?: string;
   notes?: string;
   createdAt: string;
@@ -65,6 +66,9 @@ export interface RegistrationStats {
   virtual: number;
   declined: number;
   attendanceRate: number;
+  registeredToVoteYes: number;
+  registeredToVoteNo: number;
+  registeredToVoteRate: number;
 }
 
 export interface NotificationRecord {

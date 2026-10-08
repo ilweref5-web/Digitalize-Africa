@@ -14,7 +14,8 @@ import {
   Calendar,
   ExternalLink,
   Search,
-  Filter
+  Filter,
+  CheckSquare
 } from 'lucide-react';
 import { MeetingConfig, RegistrationStats, Registration, OrganizerUser } from '../types';
 
@@ -69,6 +70,9 @@ KEY METRICS:
   * In-Person Seating: ${stats.inPerson}
   * Virtual Stream: ${stats.virtual}
 - Cannot Attend / Apologies: ${stats.declined}
+- Did you register to vote ! (Voting Registration Responses):
+  * Registered to Vote (Yes): ${stats.registeredToVoteYes} (${stats.registeredToVoteRate}%)
+  * Not Registered (No): ${stats.registeredToVoteNo}
 
 CATERING & DIETARY REQUIREMENTS:
 ${Object.entries(dietaryCounts).map(([k, v]) => `• ${k}: ${v}`).join('\n')}
@@ -182,7 +186,7 @@ Shared Application: ${meeting.sharedAppUrl || window.location.origin}`;
           </div>
 
           {/* Key Metrics Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 text-center">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                 Total Registrations
@@ -197,6 +201,16 @@ Shared Application: ${meeting.sharedAppUrl || window.location.origin}`;
               </span>
               <div className="text-3xl font-black text-emerald-300 mt-1">{stats.attending}</div>
               <div className="text-[11px] text-emerald-400/80 mt-0.5">{stats.attendanceRate}% Attendance Rate</div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-850 border border-cyan-500/30 text-center">
+              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
+                Did you register to vote !
+              </span>
+              <div className="text-2xl font-black text-cyan-300 mt-1">
+                {stats.registeredToVoteYes} <span className="text-xs text-slate-400 font-normal">Yes</span> / {stats.registeredToVoteNo} <span className="text-xs text-slate-400 font-normal">No</span>
+              </div>
+              <div className="text-[11px] text-cyan-400/80 mt-0.5">{stats.registeredToVoteRate}% Confirmed Voters</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-850 border border-slate-750 text-center">
@@ -297,6 +311,7 @@ Shared Application: ${meeting.sharedAppUrl || window.location.origin}`;
                     <th className="py-2.5 px-3">Contact Email</th>
                     <th className="py-2.5 px-3">Phone</th>
                     <th className="py-2.5 px-3">Attendance</th>
+                    <th className="py-2.5 px-3">Did you register to vote !</th>
                     <th className="py-2.5 px-3">Dietary</th>
                     <th className="py-2.5 px-3">Registered At</th>
                   </tr>
@@ -304,7 +319,7 @@ Shared Application: ${meeting.sharedAppUrl || window.location.origin}`;
                 <tbody className="divide-y divide-slate-800/60">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-6 text-center text-slate-500">
+                      <td colSpan={9} className="py-6 text-center text-slate-500">
                         No records match the current filter.
                       </td>
                     </tr>
@@ -325,6 +340,15 @@ Shared Application: ${meeting.sharedAppUrl || window.location.origin}`;
                               : 'bg-rose-500/20 text-rose-300'
                           }`}>
                             {r.attendance === 'in_person' ? 'In-Person' : r.attendance === 'virtual' ? 'Virtual' : 'Apologies'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            r.registeredToVote === 'Yes'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-slate-700/60 text-slate-300'
+                          }`}>
+                            {r.registeredToVote === 'Yes' ? 'Yes (Registered)' : 'No'}
                           </span>
                         </td>
                         <td className="py-2 px-3 text-slate-400">{r.dietary || 'None'}</td>

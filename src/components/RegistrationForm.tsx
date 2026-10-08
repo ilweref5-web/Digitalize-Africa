@@ -40,6 +40,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [organization, setOrganization] = useState('');
   const [role, setRole] = useState('');
   const [attendance, setAttendance] = useState<AttendanceStatus>('in_person');
+  const [registeredToVote, setRegisteredToVote] = useState<'Yes' | 'No'>('Yes');
   const [dietary, setDietary] = useState('None');
   const [notes, setNotes] = useState('');
   const [formTheme, setFormTheme] = useState<'google_forms' | 'modern'>('google_forms');
@@ -80,6 +81,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           organization,
           role,
           attendance,
+          registeredToVote,
           dietary,
           notes,
           source: 'QR Code Mobile Form',
@@ -119,6 +121,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     setOrganization('');
     setRole('');
     setAttendance('in_person');
+    setRegisteredToVote('Yes');
     setDietary('None');
     setNotes('');
     setSubmittedData(null);
@@ -175,6 +178,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <span className="font-semibold block text-slate-400 text-[10px] uppercase">Phone</span>
                   {submittedData.phone || 'N/A'}
                 </div>
+              </div>
+
+              {/* Voter Registration Answer Badge */}
+              <div className="pt-2 flex items-center justify-between p-3 rounded-xl bg-slate-100/90 border border-slate-200">
+                <span className="text-xs font-semibold text-slate-700">
+                  Did you register to vote !
+                </span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                  submittedData.registeredToVote === 'Yes'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-slate-200 text-slate-700 border border-slate-300'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${submittedData.registeredToVote === 'Yes' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  {submittedData.registeredToVote === 'Yes' ? 'Yes (Registered)' : 'No (Not Registered)'}
+                </span>
               </div>
             </div>
 
@@ -657,6 +675,98 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <div className="text-sm font-bold">No, cannot attend (Sending apologies)</div>
                   <div className={`text-xs ${isGoogleFormsStyle ? 'text-slate-500' : 'text-slate-400'}`}>
                     Meeting minutes &amp; recording will be emailed
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Section: Did you register to vote ! (Yes / No) Response Answers */}
+          <div className={`p-5 rounded-xl transition-all ${
+            isGoogleFormsStyle 
+              ? 'bg-white border border-slate-200 shadow-sm focus-within:border-purple-600' 
+              : 'bg-slate-850 border border-slate-800 focus-within:border-indigo-500'
+          }`}>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-bold flex items-center gap-1.5">
+                <span>Did you register to vote !</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                isGoogleFormsStyle 
+                  ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                  : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+              }`}>
+                Voting Registration
+              </span>
+            </div>
+            <p className={`text-xs mb-3.5 ${isGoogleFormsStyle ? 'text-slate-500' : 'text-slate-400'}`}>
+              Please select your official voting registration status (Yes / No)
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Option: Yes */}
+              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                registeredToVote === 'Yes'
+                  ? isGoogleFormsStyle
+                    ? 'bg-purple-50/80 border-purple-500 ring-2 ring-purple-500/20 text-purple-950 font-medium shadow-sm'
+                    : 'bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/20 text-white font-medium shadow-sm'
+                  : isGoogleFormsStyle
+                    ? 'border-slate-200 hover:bg-slate-50 text-slate-800'
+                    : 'border-slate-800 hover:bg-slate-800 text-slate-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="registeredToVote"
+                  value="Yes"
+                  checked={registeredToVote === 'Yes'}
+                  onChange={() => setRegisteredToVote('Yes')}
+                  className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold">Yes</span>
+                    {registeredToVote === 'Yes' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40">
+                        Registered
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-xs mt-0.5 ${isGoogleFormsStyle ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Yes, I have registered to vote
+                  </div>
+                </div>
+              </label>
+
+              {/* Option: No */}
+              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                registeredToVote === 'No'
+                  ? isGoogleFormsStyle
+                    ? 'bg-rose-50/80 border-rose-400 ring-2 ring-rose-400/20 text-rose-950 font-medium shadow-sm'
+                    : 'bg-slate-800/90 border-slate-600 ring-2 ring-slate-600/30 text-white font-medium shadow-sm'
+                  : isGoogleFormsStyle
+                    ? 'border-slate-200 hover:bg-slate-50 text-slate-800'
+                    : 'border-slate-800 hover:bg-slate-800 text-slate-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="registeredToVote"
+                  value="No"
+                  checked={registeredToVote === 'No'}
+                  onChange={() => setRegisteredToVote('No')}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold">No</span>
+                    {registeredToVote === 'No' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-bold border border-slate-600">
+                        Not Registered
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-xs mt-0.5 ${isGoogleFormsStyle ? 'text-slate-500' : 'text-slate-400'}`}>
+                    No, I have not registered to vote yet
                   </div>
                 </div>
               </label>

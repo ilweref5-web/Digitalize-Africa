@@ -7,12 +7,14 @@ import {
   Volume2, 
   VolumeX, 
   Download, 
-  ExternalLink,
-  Users,
-  Edit3,
-  BarChart3,
-  Lock,
-  UserCheck
+  ExternalLink, 
+  Users, 
+  Edit3, 
+  BarChart3, 
+  Lock, 
+  UserCheck,
+  LogOut,
+  Calendar
 } from 'lucide-react';
 import { MeetingConfig, OrganizerUser } from '../types';
 
@@ -29,9 +31,10 @@ interface HeaderProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   unreadNotificationsCount?: number;
-  viewMode: 'dashboard' | 'form';
-  onSetViewMode: (mode: 'dashboard' | 'form') => void;
+  viewMode: 'dashboard' | 'calendar' | 'form' | 'login';
+  onSetViewMode: (mode: 'dashboard' | 'calendar' | 'form' | 'login') => void;
   currentUser?: OrganizerUser | null;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -50,6 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   viewMode,
   onSetViewMode,
   currentUser,
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-md">
@@ -57,7 +61,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Left: Branding & Status */}
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-emerald-500 shadow-md">
+            <div 
+              onClick={() => onSetViewMode('dashboard')}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-emerald-500 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+            >
               <QrCode className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -78,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right: Actions & Tools */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* View Mode Toggle */}
+            {/* View Mode Toggle: Dashboard | Calendar | Attendee Form */}
             <div className="bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/60 flex items-center">
               <button
                 onClick={() => onSetViewMode('dashboard')}
@@ -92,6 +99,20 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Dashboard</span>
+                </span>
+              </button>
+              <button
+                onClick={() => onSetViewMode('calendar')}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'calendar'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+                title="View Event Calendar"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Calendar</span>
                 </span>
               </button>
               <button
@@ -140,28 +161,36 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden lg:inline">Screen Mode</span>
             </button>
 
-            {/* Organizer Login / Account Badge */}
-            <button
-              onClick={onOpenLogin}
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
-                currentUser 
-                  ? 'bg-indigo-950/60 text-indigo-300 border-indigo-500/40 hover:bg-indigo-900/60' 
-                  : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700 hover:bg-slate-750'
-              }`}
-              title={currentUser ? `Logged in as ${currentUser.fullName} (${currentUser.username})` : 'Organizer Login (David Nkwe / Katlego Mathunywa)'}
-            >
-              {currentUser ? (
-                <>
+            {/* Profile View / Authentication: Replace "Organizer Login" with "Log-off" when user is authenticated */}
+            {currentUser ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onOpenLogin}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border bg-indigo-950/60 text-indigo-300 border-indigo-500/40 hover:bg-indigo-900/60 transition-colors cursor-pointer"
+                  title={`Organizer Profile: ${currentUser.fullName} (${currentUser.username})`}
+                >
                   <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline">{currentUser.username}</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  <span className="hidden sm:inline">Organizer Login</span>
-                </>
-              )}
-            </button>
+                  <span className="font-mono">{currentUser.username}</span>
+                </button>
+                <button
+                  onClick={onLogout}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-bold border bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-white border-rose-800/60 transition-colors cursor-pointer shadow-sm"
+                  title={`Log-off ${currentUser.fullName} session`}
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="inline">Log-off</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenLogin}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border bg-slate-800 text-slate-300 hover:text-white border-slate-700 hover:bg-slate-750 transition-colors cursor-pointer"
+                title="Organizer Login (David Nkwe / Katlego Mathunywa)"
+              >
+                <Lock className="w-4 h-4 text-slate-400" />
+                <span className="hidden sm:inline">Organizer Login</span>
+              </button>
+            )}
 
             {/* Email Notifications Center */}
             <button

@@ -13,7 +13,8 @@ import {
   MessageSquare,
   Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CheckSquare
 } from 'lucide-react';
 import { Registration, AttendanceStatus } from '../types';
 
@@ -31,6 +32,9 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const voteYesCount = registrations.filter(r => r.registeredToVote === 'Yes').length;
+  const voteNoCount = registrations.filter(r => r.registeredToVote === 'No').length;
+
   const filteredList = registrations.filter((item) => {
     const matchesSearch = 
       item.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,6 +46,8 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
 
     if (filterStatus === 'all') return true;
     if (filterStatus === 'attending') return item.attendance === 'in_person' || item.attendance === 'virtual';
+    if (filterStatus === 'voter_yes') return item.registeredToVote === 'Yes';
+    if (filterStatus === 'voter_no') return item.registeredToVote === 'No';
     return item.attendance === filterStatus;
   });
 
@@ -71,6 +77,23 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
     }
   };
 
+  const getVoterBadge = (voterStatus?: 'Yes' | 'No') => {
+    if (voterStatus === 'No') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          Voter: No
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+        <CheckSquare className="w-3 h-3 text-emerald-400" />
+        Voter: Yes
+      </span>
+    );
+  };
+
   const formatTimestamp = (iso: string) => {
     try {
       const date = new Date(iso);
@@ -89,6 +112,9 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
             <h3 className="text-lg font-bold text-white">Live RSVP Registrations</h3>
             <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300">
               {registrations.length} Total
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              {voteYesCount} Registered Voters
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -116,6 +142,8 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
           { key: 'attending', label: `Attending (${registrations.filter(r => r.attendance !== 'declined').length})` },
           { key: 'in_person', label: `In-Person (${registrations.filter(r => r.attendance === 'in_person').length})` },
           { key: 'virtual', label: `Virtual (${registrations.filter(r => r.attendance === 'virtual').length})` },
+          { key: 'voter_yes', label: `Voter: Yes (${voteYesCount})` },
+          { key: 'voter_no', label: `Voter: No (${voteNoCount})` },
           { key: 'declined', label: `Declined (${registrations.filter(r => r.attendance === 'declined').length})` },
         ].map((tab) => (
           <button
@@ -156,11 +184,12 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
                       {attendee.fullName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-white text-sm">
                           {attendee.fullName}
                         </span>
                         {getAttendanceBadge(attendee.attendance)}
+                        {getVoterBadge(attendee.registeredToVote)}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
                         <span className="flex items-center gap-1">
@@ -194,16 +223,14 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {/* Expand notes */}
-                      {(attendee.notes || attendee.dietary !== 'None') && (
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : attendee.id)}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
-                          title="View attendee details & notes"
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                      )}
+                      {/* Expand details button */}
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : attendee.id)}
+                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                        title="View attendee details & notes"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
 
                       {/* Delete */}
                       <button
@@ -221,9 +248,15 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
                   </div>
                 </div>
 
-                {/* Expandable details (Dietary & Host Notes) */}
+                {/* Expandable details (Dietary, Voter Response & Host Notes) */}
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-lg">
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/60 p-3 rounded-lg">
+                    <div>
+                      <span className="font-semibold text-slate-400 block mb-0.5">Did you register to vote !:</span>
+                      <span className={`font-bold ${attendee.registeredToVote === 'Yes' ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        {attendee.registeredToVote === 'Yes' ? 'Yes (Confirmed Registered Voter)' : 'No (Not Registered)'}
+                      </span>
+                    </div>
                     {attendee.dietary && attendee.dietary !== 'None' && (
                       <div>
                         <span className="font-semibold text-slate-400 block mb-0.5">Dietary Requirement:</span>
@@ -231,7 +264,7 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
                       </div>
                     )}
                     {attendee.notes && (
-                      <div className="sm:col-span-2">
+                      <div className="sm:col-span-3">
                         <span className="font-semibold text-slate-400 block mb-0.5">Notes for Hosts (Dave & Kenny):</span>
                         <p className="text-slate-300 italic">"{attendee.notes}"</p>
                       </div>

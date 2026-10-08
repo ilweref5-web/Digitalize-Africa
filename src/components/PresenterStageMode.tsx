@@ -13,7 +13,8 @@ import {
   Sparkles,
   Edit3,
   Globe,
-  ExternalLink
+  ExternalLink,
+  CheckSquare
 } from 'lucide-react';
 import { MeetingConfig, RegistrationStats, Registration } from '../types';
 
@@ -271,6 +272,33 @@ export const PresenterStageMode: React.FC<PresenterStageModeProps> = ({
               </div>
             </div>
 
+            {/* Massive Counter 3: Did you register to vote ! */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-900 border border-cyan-500/40 shadow-xl flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-cyan-400" />
+                  Did you register to vote !
+                </span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-3xl sm:text-4xl font-black text-cyan-300 tracking-tight">
+                    {stats.registeredToVoteYes ?? 0}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-400 uppercase">Yes</span>
+                  <span className="text-slate-500 font-light text-xl">/</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-slate-300">
+                    {stats.registeredToVoteNo ?? 0}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 uppercase">No</span>
+                </div>
+                <div className="text-xs text-cyan-400 mt-1 font-semibold">
+                  {stats.registeredToVoteRate ?? 0}% Confirmed Registered Voters
+                </div>
+              </div>
+              <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300">
+                <CheckSquare className="w-7 h-7" />
+              </div>
+            </div>
+
             {/* Live Registrant Feed Ticker */}
             <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
@@ -301,15 +329,24 @@ export const PresenterStageMode: React.FC<PresenterStageModeProps> = ({
                           <div className="text-[11px] text-slate-400">{att.organization || 'Attendee'}</div>
                         </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        att.attendance === 'in_person'
-                          ? 'bg-blue-500/20 text-blue-300'
-                          : att.attendance === 'virtual'
-                          ? 'bg-purple-500/20 text-purple-300'
-                          : 'bg-rose-500/20 text-rose-300'
-                      }`}>
-                        {att.attendance === 'in_person' ? 'In-Person' : att.attendance === 'virtual' ? 'Virtual' : 'Apologies'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          att.registeredToVote === 'Yes'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-slate-700/60 text-slate-400'
+                        }`}>
+                          {att.registeredToVote === 'Yes' ? 'Voter: Yes' : 'Voter: No'}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          att.attendance === 'in_person'
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : att.attendance === 'virtual'
+                            ? 'bg-purple-500/20 text-purple-300'
+                            : 'bg-rose-500/20 text-rose-300'
+                        }`}>
+                          {att.attendance === 'in_person' ? 'In-Person' : att.attendance === 'virtual' ? 'Virtual' : 'Apologies'}
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}

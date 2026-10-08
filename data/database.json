@@ -49,7 +49,8 @@
       "dietary": "None",
       "notes": "",
       "createdAt": "2026-10-08T21:15:50.062Z",
-      "source": "QR Code Scan (Mobile)"
+      "source": "QR Code Scan (Mobile)",
+      "registeredToVote": "Yes"
     },
     {
       "id": "reg-1",
@@ -62,7 +63,8 @@
       "dietary": "None",
       "notes": "Looking forward to the Q4 targets presentation.",
       "createdAt": "2026-10-08T16:09:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "Yes"
     },
     {
       "id": "reg-2",
@@ -75,7 +77,8 @@
       "dietary": "Vegetarian",
       "notes": "Joining remotely from San Francisco team.",
       "createdAt": "2026-10-08T17:09:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "No"
     },
     {
       "id": "reg-3",
@@ -88,7 +91,8 @@
       "dietary": "Halaal",
       "notes": "Will bring 2 hard copies of the financial audit.",
       "createdAt": "2026-10-08T18:09:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "Yes"
     },
     {
       "id": "reg-4",
@@ -101,7 +105,8 @@
       "dietary": "Gluten-Free",
       "notes": "Confirmed attending in person.",
       "createdAt": "2026-10-08T19:09:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "Yes"
     },
     {
       "id": "reg-5",
@@ -114,7 +119,8 @@
       "dietary": "None",
       "notes": "Please ensure virtual link recording is shared afterwards.",
       "createdAt": "2026-10-08T20:09:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "No"
     },
     {
       "id": "reg-6",
@@ -127,7 +133,8 @@
       "dietary": "None",
       "notes": "Sending apologies due to conflicting high court arbitration.",
       "createdAt": "2026-10-08T20:39:12.349Z",
-      "source": "QR Scan - Mobile"
+      "source": "QR Scan - Mobile",
+      "registeredToVote": "Yes"
     }
   ],
   "notifications": [
@@ -178,13 +185,13 @@
     {
       "id": "user-dave",
       "username": "DaveN",
-      "passwordHash": "Damlo@1234",
+      "passwordHash": "Damlo@2026",
       "fullName": "David Nkwe",
       "phone": "+27 76 977 5423",
       "email": "dave.nkwe@gmail.com",
       "role": "Lead Meeting Host & Executive Director",
       "avatarInitials": "DN",
-      "lastLogin": "2026-10-08T21:09:15.433Z"
+      "lastLogin": "2026-10-08T21:26:35.302Z"
     },
     {
       "id": "user-katlego",
@@ -206,7 +213,7 @@
       "email": "Kenny.weeder71@gmail.com",
       "role": "Co-Organizer & Operations Lead",
       "avatarInitials": "KM",
-      "lastLogin": "2026-10-08T21:15:38.767Z"
+      "lastLogin": "2026-10-08T21:26:30.093Z"
     }
   ]
 }
