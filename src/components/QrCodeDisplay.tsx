@@ -22,23 +22,30 @@ interface QrCodeDisplayProps {
   onOpenMobileSimulator: () => void;
   onOpenQrEditor: () => void;
   onOpenFullscreenQr?: () => void;
+  onOpenQrGenerator?: () => void;
+  onOpenAttendeeQrModal?: () => void;
+  canEditQr?: boolean;
 }
 
 export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
   meeting,
   onOpenMobileSimulator,
   onOpenQrEditor,
+  onOpenQrGenerator,
+  onOpenAttendeeQrModal,
+  canEditQr = false,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [qrSize, setQrSize] = useState<'md' | 'lg' | 'xl'>('lg');
   const [targetUrl, setTargetUrl] = useState<string>('');
+  const [useCurrentOrigin, setUseCurrentOrigin] = useState<boolean>(true);
 
   const qrConfig = meeting.qrConfig || {
     mode: 'registration_hub',
     qrTitle: 'Scan to Register & Access Portals',
     qrSubtitle: 'Compatible with any cell phone model, camera, or QR scanner app',
-    badgeText: 'Exclusive Premium QR Code',
+    badgeText: 'Attendee Registration QR Code',
     customUrl: '',
     googleFormsUrl: meeting.googleFormsUrl || '',
     eotofUrl: meeting.eotofUrl || 'https://www.eotof.co.za',
@@ -57,36 +64,42 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
   };
 
   useEffect(() => {
-    const baseOrigin = qrConfig.useSharedDomain && meeting.sharedAppUrl ? meeting.sharedAppUrl : window.location.origin;
+    const publicUrl = meeting.sharedAppUrl || 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const baseOrigin = useCurrentOrigin && browserOrigin ? browserOrigin : (publicUrl || browserOrigin);
     let finalUrl = '';
 
-    if (qrConfig.mode === 'whatsapp_direct') {
-      const phone = (qrConfig.whatsappNumber || '27769775423').replace(/[^0-9]/g, '');
-      const msg = encodeURIComponent(qrConfig.whatsappPrefillMessage || `Hello David Nkwe and Katlego Mathunywa, I would like to RSVP for: ${meeting.title}`);
-      finalUrl = `https://wa.me/${phone}?text=${msg}`;
-    } else if (qrConfig.mode === 'registration_hub') {
-      const url = new URL(baseOrigin);
-      url.searchParams.set('view', 'register');
-      finalUrl = url.toString();
-    } else if (qrConfig.mode === 'google_form_direct') {
-      finalUrl = qrConfig.googleFormsUrl || `${baseOrigin}?view=register`;
-    } else if (qrConfig.mode === 'portal_links') {
-      const url = new URL(baseOrigin);
-      url.searchParams.set('view', 'portals');
-      finalUrl = url.toString();
-    } else if (qrConfig.mode === 'custom_url') {
-      finalUrl = qrConfig.customUrl || baseOrigin;
-    } else {
-      const url = new URL(baseOrigin);
-      url.searchParams.set('view', 'register');
-      finalUrl = url.toString();
+    try {
+      if (qrConfig.mode === 'whatsapp_direct') {
+        const phone = (qrConfig.whatsappNumber || '27769775423').replace(/[^0-9]/g, '');
+        const msg = encodeURIComponent(qrConfig.whatsappPrefillMessage || `Hello David Nkwe and Katlego Mathunywa, I would like to RSVP for: ${meeting.title}`);
+        finalUrl = `https://wa.me/${phone}?text=${msg}`;
+      } else if (qrConfig.mode === 'registration_hub') {
+        const url = new URL(baseOrigin);
+        url.searchParams.set('view', 'register');
+        finalUrl = url.toString();
+      } else if (qrConfig.mode === 'google_form_direct') {
+        finalUrl = qrConfig.googleFormsUrl || `${baseOrigin}?view=register`;
+      } else if (qrConfig.mode === 'portal_links') {
+        const url = new URL(baseOrigin);
+        url.searchParams.set('view', 'portals');
+        finalUrl = url.toString();
+      } else if (qrConfig.mode === 'custom_url') {
+        finalUrl = qrConfig.customUrl || baseOrigin;
+      } else {
+        const url = new URL(baseOrigin);
+        url.searchParams.set('view', 'register');
+        finalUrl = url.toString();
+      }
+    } catch {
+      finalUrl = `${baseOrigin}?view=register`;
     }
 
     setTargetUrl(finalUrl);
 
     // Generate high-definition vector QR code with Level-H error correction
     QRCode.toDataURL(finalUrl, {
-      width: 460,
+      width: 480,
       margin: 2,
       color: {
         dark: qrConfig.fgColor || '#0f172a',
@@ -94,7 +107,7 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
       },
       errorCorrectionLevel: qrConfig.errorCorrectionLevel || 'H',
     }).then(setQrDataUrl).catch(console.error);
-  }, [meeting, qrConfig]);
+  }, [meeting, qrConfig, useCurrentOrigin]);
 
   const handleCopyLink = () => {
     if (!targetUrl) return;
@@ -156,16 +169,42 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Edit QR Code Info button */}
-            <button
-              onClick={onOpenQrEditor}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/40 text-xs font-semibold transition-all cursor-pointer shadow-sm"
-              title="Edit QR information, links, and partner portals"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit QR</span>
-            </button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Open Dedicated Attendee Form QR Modal */}
+            {onOpenAttendeeQrModal && (
+              <button
+                onClick={onOpenAttendeeQrModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+                title="Open dedicated large Attendee Form QR code with print & copy tools"
+              >
+                <QrIcon className="w-3.5 h-3.5 text-white" />
+                <span>Enlarge Attendee QR</span>
+              </button>
+            )}
+
+            {/* Open Full QR Generator Screen */}
+            {onOpenQrGenerator && (
+              <button
+                onClick={onOpenQrGenerator}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-indigo-600/30 hover:from-emerald-600/40 hover:to-indigo-600/40 text-emerald-300 hover:text-white border border-emerald-500/40 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                title="Open Live QR Code Generator Studio & Verification Screen"
+              >
+                <QrIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>QR Studio</span>
+              </button>
+            )}
+
+            {/* Edit QR Code Info button - Admin Only */}
+            {canEditQr && (
+              <button
+                onClick={onOpenQrEditor}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/40 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+                title="Edit QR information, links, and partner portals (Admin Only)"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit QR</span>
+              </button>
+            )}
 
             {/* Size controls */}
             <div className="hidden sm:flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700/60">
@@ -191,6 +230,43 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
                 XL
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Target URL Domain Switcher */}
+        <div className="mb-2 flex items-center justify-between flex-wrap gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span className="font-semibold text-slate-300">Destination:</span>
+            <span className="font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30 text-[11px]">
+              Attendee Form (?view=register)
+            </span>
+          </div>
+
+          <div className="flex items-center bg-slate-950/70 p-0.5 rounded-xl border border-slate-800 text-[11px]">
+            <button
+              type="button"
+              onClick={() => setUseCurrentOrigin(true)}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                useCurrentOrigin
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Use current preview URL (ideal for testing in browser / simulator)"
+            >
+              Current Domain
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseCurrentOrigin(false)}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                !useCurrentOrigin
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Use public cloud domain (ideal for testing with external cell phones)"
+            >
+              Public Cloud URL
+            </button>
           </div>
         </div>
 

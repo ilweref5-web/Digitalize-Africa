@@ -27,12 +27,13 @@ interface HeaderProps {
   onOpenReporting: () => void;
   onOpenLogin: () => void;
   onOpenRegistrationForm: () => void;
+  onOpenAttendeeQrModal?: () => void;
   onExportCsv: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
   unreadNotificationsCount?: number;
-  viewMode: 'dashboard' | 'calendar' | 'form' | 'login';
-  onSetViewMode: (mode: 'dashboard' | 'calendar' | 'form' | 'login') => void;
+  viewMode: 'dashboard' | 'calendar' | 'form' | 'login' | 'qr_generator';
+  onSetViewMode: (mode: 'dashboard' | 'calendar' | 'form' | 'login' | 'qr_generator') => void;
   currentUser?: OrganizerUser | null;
   onLogout?: () => void;
 }
@@ -46,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReporting,
   onOpenLogin,
   onOpenRegistrationForm,
+  onOpenAttendeeQrModal,
   onExportCsv,
   soundEnabled,
   onToggleSound,
@@ -129,6 +131,30 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="hidden md:inline">Attendee Form</span>
                 </span>
               </button>
+              {onOpenAttendeeQrModal && (
+                <button
+                  onClick={onOpenAttendeeQrModal}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-sm flex items-center gap-1.5 cursor-pointer animate-pulse hover:animate-none"
+                  title="Instant QR Code with the Attendee Form"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-white" />
+                  <span>Attendee QR</span>
+                </button>
+              )}
+              <button
+                onClick={() => onSetViewMode('qr_generator')}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'qr_generator'
+                    ? 'bg-gradient-to-r from-indigo-600 to-emerald-600 text-white shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                }`}
+                title="Open QR Code Generator Studio & Live Verifier"
+              >
+                <span className="flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline">QR Studio</span>
+                </span>
+              </button>
             </div>
 
             {/* Reports Suite Button */}
@@ -141,15 +167,17 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Reports</span>
             </button>
 
-            {/* Edit QR Code Information */}
-            <button
-              onClick={onOpenQrEditor}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer"
-              title="Edit QR Code Destinations & Information"
-            >
-              <Edit3 className="w-4 h-4 text-indigo-400" />
-              <span className="hidden lg:inline">Edit QR</span>
-            </button>
+            {/* Edit QR Code Information - Admin Function */}
+            {currentUser?.isAdmin && (
+              <button
+                onClick={onOpenQrEditor}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-semibold border border-slate-700 transition-colors cursor-pointer"
+                title="Edit QR Code Destinations & Information (Admin Only)"
+              >
+                <Edit3 className="w-4 h-4 text-indigo-400" />
+                <span className="hidden lg:inline">Edit QR</span>
+              </button>
+            )}
 
             {/* Stage / Projector Mode */}
             <button
@@ -167,10 +195,15 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onOpenLogin}
                   className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border bg-indigo-950/60 text-indigo-300 border-indigo-500/40 hover:bg-indigo-900/60 transition-colors cursor-pointer"
-                  title={`Organizer Profile: ${currentUser.fullName} (${currentUser.username})`}
+                  title={`Profile: ${currentUser.fullName} (${currentUser.username})${!currentUser.isAdmin ? ' - Standard Profile (Non-Admin)' : ' - Admin'}`}
                 >
                   <UserCheck className="w-4 h-4 text-emerald-400" />
                   <span className="font-mono">{currentUser.username}</span>
+                  {!currentUser.isAdmin && (
+                    <span className="hidden xl:inline text-[10px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-normal">
+                      Host
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={onLogout}
@@ -185,10 +218,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onOpenLogin}
                 className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-lg text-xs font-semibold border bg-slate-800 text-slate-300 hover:text-white border-slate-700 hover:bg-slate-750 transition-colors cursor-pointer"
-                title="Organizer Login (David Nkwe / Katlego Mathunywa)"
+                title="Sign In (David Nkwe / Katlego Mathunywa)"
               >
                 <Lock className="w-4 h-4 text-slate-400" />
-                <span className="hidden sm:inline">Organizer Login</span>
+                <span className="hidden sm:inline">Sign In</span>
               </button>
             )}
 
@@ -219,14 +252,16 @@ export const Header: React.FC<HeaderProps> = ({
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
-            {/* Meeting Settings */}
-            <button
-              onClick={onOpenSettings}
-              className="p-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors cursor-pointer"
-              title="Meeting & Notification Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            {/* Meeting Settings - Admin Function */}
+            {currentUser?.isAdmin && (
+              <button
+                onClick={onOpenSettings}
+                className="p-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+                title="Meeting & Notification Settings (Admin Only)"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

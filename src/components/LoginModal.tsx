@@ -82,6 +82,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   // If already logged in, show profile card with Log-off button as requested
   if (currentUser) {
+    const isNonAdmin = !currentUser.isAdmin;
     const content = (
       <div className="w-full max-w-md bg-[#0e172a] border border-slate-800 rounded-[28px] shadow-2xl overflow-hidden p-6 space-y-5">
         {/* Header */}
@@ -91,7 +92,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Organizer Profile &amp; Session</h2>
+              <h2 className="text-lg font-bold text-white">
+                {isNonAdmin ? 'Host Profile & Session' : 'Organizer Profile & Session'}
+              </h2>
               <p className="text-xs text-slate-400">{currentUser.fullName}</p>
             </div>
           </div>
@@ -110,8 +113,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <div className="text-base font-bold text-white">{currentUser.fullName}</div>
               <div className="text-xs text-indigo-400 font-mono mt-0.5">User ID: {currentUser.username}</div>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              Active Session
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+              isNonAdmin 
+                ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
+                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+            }`}>
+              {isNonAdmin ? 'Standard Profile (Non-Admin View)' : 'Admin Session Active'}
             </span>
           </div>
 
@@ -125,6 +132,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <span>{currentUser.email}</span>
             </div>
           </div>
+
+          {isNonAdmin && (
+            <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <span>
+                <strong>Profile Access Level:</strong> Administrative functions, data resets, and system configuration views have been removed from this profile.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Profile Actions: Replace Organizer Login with Log-off */}
@@ -208,6 +224,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div className="font-bold text-sm text-white">David Nkwe</div>
             <div className="text-xs text-indigo-300 font-medium mt-0.5">User ID: DaveN</div>
             <div className="text-[11px] text-slate-400 mt-0.5">+27 76 977 5423</div>
+            <div className="text-[10px] text-slate-400 truncate">dave.nkwe@gmail.com</div>
+            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+              Standard Profile
+            </span>
           </button>
 
           {/* Card 2: Katlego Mathunywa */}
@@ -223,6 +243,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div className="font-bold text-sm text-white">Katlego Mathunywa</div>
             <div className="text-xs text-indigo-300 font-medium mt-0.5">User ID: Kmat</div>
             <div className="text-[11px] text-slate-400 mt-0.5">+27 69 497 7018</div>
+            <div className="text-[10px] text-slate-400 truncate">Kenny.weeder71@gmail.com</div>
+            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+              Operations Admin
+            </span>
           </button>
         </div>
       </div>
@@ -238,7 +262,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-            USER ID / LOGIN ID
+            USER ID / LOGIN ID OR EMAIL
           </label>
           <div className="relative">
             <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
@@ -247,7 +271,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="DaveN or Kmat"
+              placeholder="DaveN or dave.nkwe@gmail.com"
               className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl bg-[#131b2e] border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-[#5235e8] font-medium"
             />
           </div>
@@ -268,8 +292,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl bg-[#131b2e] border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-[#5235e8] font-mono"
             />
           </div>
-          <p className="text-[11px] text-slate-500 mt-1.5">
-            {selectedAccount === 'dave' ? 'Default: Damlo@2026' : 'Default: Data@1234'}
+          <p className="text-[11px] text-slate-400 mt-1.5">
+            {selectedAccount === 'dave' 
+              ? 'Password: Damlo@2026 (also accepts Damlo@1234)' 
+              : 'Password: Data@1234 (also accepts Damlo@1234)'}
           </p>
         </div>
 
@@ -287,7 +313,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           ) : (
             <>
               <LogIn className="w-4 h-4" />
-              <span>Sign In as Organizer</span>
+              <span>Sign In</span>
             </>
           )}
         </button>
@@ -295,7 +321,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       {/* Footer text matching image */}
       <p className="text-center text-xs text-slate-500 pt-1 leading-relaxed">
-        Secure session access for meeting reporting, RSVP administration &amp; data export.
+        Secure host session access for meeting reporting, live attendance feed &amp; data export.
       </p>
     </div>
   );

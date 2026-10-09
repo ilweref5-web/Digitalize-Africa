@@ -191,7 +191,8 @@
       "email": "dave.nkwe@gmail.com",
       "role": "Lead Meeting Host & Executive Director",
       "avatarInitials": "DN",
-      "lastLogin": "2026-10-08T21:26:35.302Z"
+      "isAdmin": false,
+      "lastLogin": "2026-10-09T08:17:21.176Z"
     },
     {
       "id": "user-katlego",
@@ -200,8 +201,9 @@
       "fullName": "Katlego Mathunywa",
       "phone": "+27 69 497 7018",
       "email": "Kenny.weeder71@gmail.com",
-      "role": "Co-Organizer & Operations Lead",
+      "role": "Co-Organizer & Operations Admin",
       "avatarInitials": "KM",
+      "isAdmin": true,
       "lastLogin": "2026-10-08T21:09:20.204Z"
     },
     {
@@ -211,9 +213,10 @@
       "fullName": "Katlego Mathunywa",
       "phone": "+27 69 497 7018",
       "email": "Kenny.weeder71@gmail.com",
-      "role": "Co-Organizer & Operations Lead",
+      "role": "Co-Organizer & Operations Admin",
       "avatarInitials": "KM",
-      "lastLogin": "2026-10-08T21:26:30.093Z"
+      "isAdmin": true,
+      "lastLogin": "2026-10-09T08:17:24.264Z"
     }
   ]
 }

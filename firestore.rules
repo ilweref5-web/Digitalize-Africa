@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidRegistration(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 150 &&
+             data.attendance in ['in_person', 'virtual', 'declined'] &&
+             (!('registeredToVote' in data) || data.registeredToVote in ['Yes', 'No']) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('organization' in data) || (data.organization is string && data.organization.size() <= 150)) &&
+             (!('role' in data) || (data.role is string && data.role.size() <= 100)) &&
+             (!('dietary' in data) || (data.dietary is string && data.dietary.size() <= 200)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    function isValidMeeting(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.date is string && data.date.size() <= 50 &&
+             data.time is string && data.time.size() <= 100;
+    }
+
+    // Test connection document for initial boot verification
+    match /test/connection {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Registrations collection: Public RSVP submissions with strict schema validation
+    match /registrations/{registrationId} {
+      allow get: if isValidId(registrationId);
+      allow list: if true;
+      allow create: if isValidId(registrationId) &&
+                       isValidRegistration(incoming()) &&
+                       incoming().id == registrationId;
+      allow update: if isValidId(registrationId) &&
+                       isValidRegistration(incoming()) &&
+                       incoming().id == existing().id;
+      allow delete: if false;
+    }
+
+    // Meeting configuration: Publicly readable for event info, updateable
+    match /meetings/{meetingId} {
+      allow get, list: if isValidId(meetingId);
+      allow create, update: if isValidId(meetingId) && isValidMeeting(incoming());
+      allow delete: if false;
+    }
+  }
+}

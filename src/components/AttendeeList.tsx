@@ -22,11 +22,13 @@ interface AttendeeListProps {
   registrations: Registration[];
   onDeleteAttendee: (id: string) => void;
   onRefreshData?: () => void;
+  isAdmin?: boolean;
 }
 
 export const AttendeeList: React.FC<AttendeeListProps> = ({
   registrations,
   onDeleteAttendee,
+  isAdmin = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -232,18 +234,20 @@ export const AttendeeList: React.FC<AttendeeListProps> = ({
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
 
-                      {/* Delete */}
-                      <button
-                        onClick={() => {
-                          if (confirm(`Remove ${attendee.fullName} from RSVP list?`)) {
-                            onDeleteAttendee(attendee.id);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 cursor-pointer"
-                        title="Remove attendee"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Delete - Admin only */}
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remove ${attendee.fullName} from RSVP list?`)) {
+                              onDeleteAttendee(attendee.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 cursor-pointer"
+                          title="Remove attendee (Admin Only)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

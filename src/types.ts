@@ -91,6 +91,7 @@ export interface OrganizerUser {
   email: string;
   role: string;
   avatarInitials: string;
+  isAdmin?: boolean;
   lastLogin?: string;
 }
 

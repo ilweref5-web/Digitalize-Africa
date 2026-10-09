@@ -27,6 +27,9 @@ import { LoginModal } from './components/LoginModal';
 import { MeetingCalendar } from './components/MeetingCalendar';
 import { SharedLinkBanner } from './components/SharedLinkBanner';
 import { WhatsAppRobotBadge } from './components/WhatsAppRobotBadge';
+import { QrCodeGeneratorScreen } from './components/QrCodeGeneratorScreen';
+import { AttendeeFormQrModal } from './components/AttendeeFormQrModal';
+import { testFirestoreConnection, db } from './firebase';
 import { playNotificationChime } from './utils/audio';
 import { 
   Calendar as CalendarIcon, 
@@ -41,7 +44,8 @@ import {
   ShieldCheck,
   Lock,
   UserCheck,
-  LogOut
+  LogOut,
+  QrCode
 } from 'lucide-react';
 
 const SHARED_APP_URL = 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
@@ -100,7 +104,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
 
   // Navigation & Modals
-  const [viewMode, setViewMode] = useState<'dashboard' | 'calendar' | 'form' | 'login'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'calendar' | 'form' | 'login' | 'qr_generator'>('dashboard');
   const [isStageModeOpen, setIsStageModeOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -108,6 +112,7 @@ export default function App() {
   const [isQrEditorOpen, setIsQrEditorOpen] = useState(false);
   const [isReportingModalOpen, setIsReportingModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAttendeeQrModalOpen, setIsAttendeeQrModalOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Authenticated Organizer User (David Nkwe / Katlego Mathunywa)
@@ -120,10 +125,15 @@ export default function App() {
     }
   });
 
+  // Verify Firestore connection on boot
+  useEffect(() => {
+    testFirestoreConnection().catch(() => {});
+  }, []);
+
   // Keep track of registration count for real-time sound alert
   const previousCountRef = useRef<number | null>(null);
 
-  // Check URL query parameters: if ?view=register or ?view=portals, open registration/portal view directly
+  // Check URL query parameters: if ?view=register or ?view=qr, navigate appropriately
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
@@ -131,6 +141,10 @@ export default function App() {
       setViewMode('form');
     } else if (viewParam === 'calendar') {
       setViewMode('calendar');
+    } else if (viewParam === 'qr' || viewParam === 'generator' || viewParam === 'qr_generator') {
+      setViewMode('qr_generator');
+    } else if (viewParam === 'attendee_qr' || viewParam === 'form_qr' || viewParam === 'scan') {
+      setIsAttendeeQrModalOpen(true);
     } else if (viewParam === 'login' || params.get('login') === 'true') {
       setViewMode('login');
     }
@@ -187,6 +201,10 @@ export default function App() {
   }, [soundEnabled]);
 
   const handleDeleteAttendee = async (id: string) => {
+    if (!currentUser?.isAdmin) {
+      console.warn('Unauthorized: Admin rights required to delete attendee');
+      return;
+    }
     try {
       const res = await fetch(`/api/registrations/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -198,6 +216,10 @@ export default function App() {
   };
 
   const handleResetData = async (mode: 'sample' | 'empty') => {
+    if (!currentUser?.isAdmin) {
+      console.warn('Unauthorized: Admin rights required to reset registration data');
+      return;
+    }
     try {
       const res = await fetch('/api/registrations/reset', {
         method: 'POST',
@@ -209,6 +231,18 @@ export default function App() {
       }
     } catch (err) {
       console.error('Reset error:', err);
+    }
+  };
+
+  const handleOpenSettings = () => {
+    if (currentUser?.isAdmin) {
+      setIsSettingsModalOpen(true);
+    }
+  };
+
+  const handleOpenQrEditor = () => {
+    if (currentUser?.isAdmin) {
+      setIsQrEditorOpen(true);
     }
   };
 
@@ -286,6 +320,15 @@ export default function App() {
             window.history.pushState({}, '', url.toString());
             setViewMode('dashboard');
           }}
+          onOpenQrModal={() => setIsAttendeeQrModalOpen(true)}
+        />
+        <AttendeeFormQrModal
+          isOpen={isAttendeeQrModalOpen}
+          onClose={() => setIsAttendeeQrModalOpen(false)}
+          meeting={meeting}
+          onOpenForm={() => {
+            setIsAttendeeQrModalOpen(false);
+          }}
         />
       </div>
     );
@@ -299,11 +342,12 @@ export default function App() {
           meeting={meeting}
           onOpenStageMode={() => setIsStageModeOpen(true)}
           onOpenNotifications={() => setIsNotificationModalOpen(true)}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onOpenQrEditor={() => setIsQrEditorOpen(true)}
+          onOpenSettings={handleOpenSettings}
+          onOpenQrEditor={handleOpenQrEditor}
           onOpenReporting={() => setIsReportingModalOpen(true)}
           onOpenLogin={() => setIsLoginModalOpen(true)}
           onOpenRegistrationForm={() => setViewMode('form')}
+          onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
           onExportCsv={handleExportCsv}
           soundEnabled={soundEnabled}
           onToggleSound={() => setSoundEnabled(!soundEnabled)}
@@ -335,6 +379,14 @@ export default function App() {
             registrations={registrations}
           />
         </main>
+        <AttendeeFormQrModal
+          isOpen={isAttendeeQrModalOpen}
+          onClose={() => setIsAttendeeQrModalOpen(false)}
+          meeting={meeting}
+          onOpenForm={() => {
+            setViewMode('form');
+          }}
+        />
       </div>
     );
   }
@@ -347,11 +399,12 @@ export default function App() {
           meeting={meeting}
           onOpenStageMode={() => setIsStageModeOpen(true)}
           onOpenNotifications={() => setIsNotificationModalOpen(true)}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onOpenQrEditor={() => setIsQrEditorOpen(true)}
+          onOpenSettings={handleOpenSettings}
+          onOpenQrEditor={handleOpenQrEditor}
           onOpenReporting={() => setIsReportingModalOpen(true)}
           onOpenLogin={() => setIsLoginModalOpen(true)}
           onOpenRegistrationForm={() => setViewMode('form')}
+          onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
           onExportCsv={handleExportCsv}
           soundEnabled={soundEnabled}
           onToggleSound={() => setSoundEnabled(!soundEnabled)}
@@ -374,7 +427,7 @@ export default function App() {
             >
               &larr; Back to Meeting Dashboard
             </button>
-            <span className="text-xs text-slate-400">Organizer Landing Portal</span>
+            <span className="text-xs text-slate-400">Host Sign In Portal</span>
           </div>
           <LoginModal
             isOpen={true}
@@ -393,6 +446,53 @@ export default function App() {
             onLogout={handleLogout}
           />
         </main>
+        <AttendeeFormQrModal
+          isOpen={isAttendeeQrModalOpen}
+          onClose={() => setIsAttendeeQrModalOpen(false)}
+          meeting={meeting}
+          onOpenForm={() => {
+            setViewMode('form');
+          }}
+        />
+      </div>
+    );
+  }
+
+  // If viewing standalone QR Code Generator Screen & Verifier Studio
+  if (viewMode === 'qr_generator') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+        <Header
+          meeting={meeting}
+          onOpenStageMode={() => setIsStageModeOpen(true)}
+          onOpenNotifications={() => setIsNotificationModalOpen(true)}
+          onOpenSettings={handleOpenSettings}
+          onOpenQrEditor={handleOpenQrEditor}
+          onOpenReporting={() => setIsReportingModalOpen(true)}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
+          onOpenRegistrationForm={() => setViewMode('form')}
+          onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
+          onExportCsv={handleExportCsv}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled(!soundEnabled)}
+          unreadNotificationsCount={notifications.length}
+          viewMode={viewMode}
+          onSetViewMode={setViewMode}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+        <main className="flex-1 w-full pb-12">
+          <QrCodeGeneratorScreen
+            meeting={meeting}
+            onBackToDashboard={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('view');
+              window.history.pushState({}, '', url.toString());
+              setViewMode('dashboard');
+            }}
+            onOpenAttendeeForm={() => setViewMode('form')}
+          />
+        </main>
       </div>
     );
   }
@@ -404,11 +504,12 @@ export default function App() {
         meeting={meeting}
         onOpenStageMode={() => setIsStageModeOpen(true)}
         onOpenNotifications={() => setIsNotificationModalOpen(true)}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onOpenQrEditor={() => setIsQrEditorOpen(true)}
+        onOpenSettings={handleOpenSettings}
+        onOpenQrEditor={handleOpenQrEditor}
         onOpenReporting={() => setIsReportingModalOpen(true)}
         onOpenLogin={() => setIsLoginModalOpen(true)}
         onOpenRegistrationForm={() => setViewMode('form')}
+        onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
         onExportCsv={handleExportCsv}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
@@ -479,6 +580,14 @@ export default function App() {
 
             {/* Quick Hero Actions */}
             <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
+              <button
+                onClick={() => setIsAttendeeQrModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm shadow-lg transition-all cursor-pointer ring-2 ring-emerald-400/30"
+              >
+                <QrCode className="w-4 h-4 text-white" />
+                <span>QR Code - Attendee Form</span>
+              </button>
+
               <button
                 onClick={() => setIsReportingModalOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
@@ -572,7 +681,10 @@ export default function App() {
             <QrCodeDisplay
               meeting={meeting}
               onOpenMobileSimulator={() => setIsMobileSimulatorOpen(true)}
-              onOpenQrEditor={() => setIsQrEditorOpen(true)}
+              onOpenQrEditor={handleOpenQrEditor}
+              onOpenQrGenerator={() => setViewMode('qr_generator')}
+              onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
+              canEditQr={currentUser?.isAdmin || false}
             />
           </div>
 
@@ -594,7 +706,7 @@ export default function App() {
                   Designated Organizers
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Notifications routed and administrative credentials provisioned for:
+                  Notifications routed and access credentials configured for:
                 </p>
               </div>
 
@@ -608,10 +720,12 @@ export default function App() {
                     <div>
                       <div className="text-xs font-bold text-white">David Nkwe</div>
                       <div className="text-[11px] text-slate-400 font-mono">+27 76 977 5423 &bull; dave.nkwe@gmail.com</div>
-                      <div className="text-[10px] text-indigo-400 font-mono mt-0.5">User ID: DaveN</div>
+                      <div className="text-[10px] text-indigo-300 font-mono mt-0.5">User ID: DaveN &bull; Standard Profile</div>
                     </div>
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-semibold">Ready</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold">
+                    Host (Non-Admin)
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-850 border border-slate-750">
@@ -622,10 +736,12 @@ export default function App() {
                     <div>
                       <div className="text-xs font-bold text-white">Katlego Mathunywa</div>
                       <div className="text-[11px] text-slate-400 font-mono">+27 69 497 7018 &bull; Kenny.weeder71@gmail.com</div>
-                      <div className="text-[10px] text-purple-400 font-mono mt-0.5">User ID: KatlegoM</div>
+                      <div className="text-[10px] text-purple-300 font-mono mt-0.5">User ID: KatlegoM &bull; Operations Admin</div>
                     </div>
                   </div>
-                  <span className="text-[10px] text-emerald-400 font-semibold">Ready</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                    Operations Admin
+                  </span>
                 </div>
               </div>
 
@@ -691,6 +807,7 @@ export default function App() {
             registrations={registrations}
             onDeleteAttendee={handleDeleteAttendee}
             onRefreshData={fetchData}
+            isAdmin={currentUser?.isAdmin || false}
           />
         </div>
       </main>
@@ -720,19 +837,21 @@ export default function App() {
         meeting={meeting}
         stats={stats}
         registrations={registrations}
-        onOpenQrEditor={() => {
+        onOpenQrEditor={currentUser?.isAdmin ? () => {
           setIsStageModeOpen(false);
           setIsQrEditorOpen(true);
-        }}
+        } : undefined}
       />
 
-      <QrInformationEditorModal
-        isOpen={isQrEditorOpen}
-        onClose={() => setIsQrEditorOpen(false)}
-        meeting={meeting}
-        onSaveQrConfig={handleSaveQrConfig}
-        onOpenMobileSimulator={() => setIsMobileSimulatorOpen(true)}
-      />
+      {currentUser?.isAdmin && (
+        <QrInformationEditorModal
+          isOpen={isQrEditorOpen}
+          onClose={() => setIsQrEditorOpen(false)}
+          meeting={meeting}
+          onSaveQrConfig={handleSaveQrConfig}
+          onOpenMobileSimulator={() => setIsMobileSimulatorOpen(true)}
+        />
+      )}
 
       <ReportingModal
         isOpen={isReportingModalOpen}
@@ -761,13 +880,15 @@ export default function App() {
         onTriggerDigest={handleTriggerDigest}
       />
 
-      <MeetingSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        meeting={meeting}
-        onSaveMeeting={handleSaveMeeting}
-        onResetData={handleResetData}
-      />
+      {currentUser?.isAdmin && (
+        <MeetingSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          meeting={meeting}
+          onSaveMeeting={handleSaveMeeting}
+          onResetData={handleResetData}
+        />
+      )}
 
       <MobileSimulatorModal
         isOpen={isMobileSimulatorOpen}
@@ -775,6 +896,15 @@ export default function App() {
         meeting={meeting}
         onSubmitSuccess={() => {
           fetchData();
+        }}
+      />
+
+      <AttendeeFormQrModal
+        isOpen={isAttendeeQrModalOpen}
+        onClose={() => setIsAttendeeQrModalOpen(false)}
+        meeting={meeting}
+        onOpenForm={() => {
+          setViewMode('form');
         }}
       />
     </div>

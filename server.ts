@@ -99,6 +99,7 @@ export interface OrganizerUser {
   email: string;
   role: string;
   avatarInitials: string;
+  isAdmin?: boolean;
   lastLogin?: string;
 }
 
@@ -146,7 +147,7 @@ const defaultMeetingConfig: MeetingConfig = {
   },
 };
 
-// Initial Seed Users for David Nkwe & Katlego Mathunywa as explicitly requested
+// Initial Seed Users for David Nkwe & Katlego Mathunywa
 const initialUsers: OrganizerUser[] = [
   {
     id: 'user-dave',
@@ -157,6 +158,7 @@ const initialUsers: OrganizerUser[] = [
     email: 'dave.nkwe@gmail.com',
     role: 'Lead Meeting Host & Executive Director',
     avatarInitials: 'DN',
+    isAdmin: false, // Standard profile - all admin functions and views removed
   },
   {
     id: 'user-katlego',
@@ -165,8 +167,9 @@ const initialUsers: OrganizerUser[] = [
     fullName: 'Katlego Mathunywa',
     phone: '+27 69 497 7018',
     email: 'Kenny.weeder71@gmail.com',
-    role: 'Co-Organizer & Operations Lead',
+    role: 'Co-Organizer & Operations Admin',
     avatarInitials: 'KM',
+    isAdmin: true,
   },
   {
     id: 'user-kmat',
@@ -175,8 +178,9 @@ const initialUsers: OrganizerUser[] = [
     fullName: 'Katlego Mathunywa',
     phone: '+27 69 497 7018',
     email: 'Kenny.weeder71@gmail.com',
-    role: 'Co-Organizer & Operations Lead',
+    role: 'Co-Organizer & Operations Admin',
     avatarInitials: 'KM',
+    isAdmin: true,
   },
 ];
 
@@ -333,20 +337,31 @@ function initDatabase() {
 
 function ensureRequiredUsers() {
   const dave = db.users.find(u => u.username.toLowerCase() === 'daven' || u.email.toLowerCase() === 'dave.nkwe@gmail.com');
-  const hasKatlego = db.users.some(u => u.username.toLowerCase() === 'katlegom' || u.email.toLowerCase() === 'kenny.weeder71@gmail.com');
-  const hasKmat = db.users.some(u => u.username.toLowerCase() === 'kmat');
+  const katlego = db.users.find(u => u.username.toLowerCase() === 'katlegom' || u.email.toLowerCase() === 'kenny.weeder71@gmail.com');
+  const kmat = db.users.find(u => u.username.toLowerCase() === 'kmat');
   
   if (!dave) {
     db.users.push(initialUsers[0]);
   } else {
+    dave.username = 'DaveN';
+    dave.fullName = 'David Nkwe';
+    dave.phone = '+27 76 977 5423';
+    dave.email = 'dave.nkwe@gmail.com';
     dave.passwordHash = 'Damlo@2026';
+    dave.isAdmin = false;
+    dave.role = 'Lead Meeting Host & Executive Director';
   }
-  if (!hasKatlego) {
+  if (!katlego) {
     db.users.push(initialUsers[1]);
+  } else {
+    katlego.isAdmin = true;
   }
-  if (!hasKmat) {
+  if (!kmat) {
     db.users.push(initialUsers[2]);
+  } else {
+    kmat.isAdmin = true;
   }
+  saveDatabaseToDisk();
 }
 
 function saveDatabaseToDisk() {
@@ -669,9 +684,13 @@ app.post('/api/auth/login', (req, res) => {
     u.email.toLowerCase() === cleanUser
   );
 
-  const isDavePassValid = cleanUser === 'daven' && (cleanPass === 'Damlo@2026' || cleanPass === 'Damlo@1234');
-  const isKmatPassValid = (cleanUser === 'kmat' || cleanUser === 'katlegom') && (cleanPass === 'Data@1234' || cleanPass === 'Damlo@1234');
-  const isPassMatch = user && (user.passwordHash === cleanPass || isDavePassValid || isKmatPassValid);
+  const isDave = (user && (user.username.toLowerCase() === 'daven' || user.email.toLowerCase() === 'dave.nkwe@gmail.com')) || 
+    cleanUser === 'daven' || cleanUser === 'dave.nkwe@gmail.com';
+  const isDavePassValid = isDave && (cleanPass === 'Damlo@2026' || cleanPass === 'Damlo@1234');
+  const isKatlego = (user && (user.username.toLowerCase() === 'kmat' || user.username.toLowerCase() === 'katlegom' || user.email.toLowerCase() === 'kenny.weeder71@gmail.com')) || 
+    cleanUser === 'kmat' || cleanUser === 'katlegom';
+  const isKatlegoPassValid = isKatlego && (cleanPass === 'Data@1234' || cleanPass === 'Damlo@1234');
+  const isPassMatch = user && (user.passwordHash === cleanPass || isDavePassValid || isKatlegoPassValid);
 
   if (!user || !isPassMatch) {
     return res.status(401).json({ error: 'Invalid login credentials. Please verify your User ID and Password.' });
@@ -688,6 +707,7 @@ app.post('/api/auth/login', (req, res) => {
     email: user.email,
     role: user.role,
     avatarInitials: user.avatarInitials,
+    isAdmin: user.isAdmin === true,
     lastLogin: user.lastLogin,
   };
 
@@ -707,6 +727,7 @@ app.get('/api/auth/users', (req, res) => {
     email: u.email,
     role: u.role,
     avatarInitials: u.avatarInitials,
+    isAdmin: u.isAdmin === true,
     lastLogin: u.lastLogin,
   }));
   res.json({ users: safeUsers });

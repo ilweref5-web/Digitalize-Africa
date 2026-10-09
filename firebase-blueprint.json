@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "Attendee RSVP registration submission for the meeting",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of registration"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the attendee",
+          "maxLength": 150
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the attendee",
+          "maxLength": 150
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact telephone or cell phone number",
+          "maxLength": 50
+        },
+        "organization": {
+          "type": "string",
+          "description": "Company, department, or organization name",
+          "maxLength": 150
+        },
+        "role": {
+          "type": "string",
+          "description": "Professional title or role in organization",
+          "maxLength": 100
+        },
+        "attendance": {
+          "type": "string",
+          "description": "Selected attendance status",
+          "enum": ["in_person", "virtual", "declined"]
+        },
+        "registeredToVote": {
+          "type": "string",
+          "description": "Answer to voter registration question: Did you register to vote !",
+          "enum": ["Yes", "No"]
+        },
+        "dietary": {
+          "type": "string",
+          "description": "Dietary requirements or preferences",
+          "maxLength": 200
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes or questions from attendee",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp string of creation"
+        },
+        "source": {
+          "type": "string",
+          "description": "Registration origin (e.g., qr_scan, direct_link, manual)",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "fullName", "email", "attendance"]
+    },
+    "Meeting": {
+      "title": "Meeting",
+      "description": "Strategic meeting configuration and QR settings",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the meeting",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the agenda",
+          "maxLength": 1000
+        },
+        "date": {
+          "type": "string",
+          "description": "Meeting date string"
+        },
+        "time": {
+          "type": "string",
+          "description": "Meeting time string"
+        },
+        "location": {
+          "type": "string",
+          "description": "Physical boardroom or venue address"
+        },
+        "isVirtualAvailable": {
+          "type": "boolean",
+          "description": "Whether virtual livestream is available"
+        },
+        "meetingLink": {
+          "type": "string",
+          "description": "Virtual meeting URL"
+        },
+        "eotofUrl": {
+          "type": "string",
+          "description": "EOTOF portal link"
+        },
+        "damlogateUrl": {
+          "type": "string",
+          "description": "Damlogate portal link"
+        },
+        "whatsappNumber": {
+          "type": "string",
+          "description": "WhatsApp contact number"
+        },
+        "sharedAppUrl": {
+          "type": "string",
+          "description": "Universal public web app URL for QR code scanning"
+        }
+      },
+      "required": ["title", "date", "time"]
+    }
+  },
+  "firestore": {
+    "/registrations/{registrationId}": {
+      "schema": {
+        "$ref": "#/entities/Registration"
+      },
+      "description": "Universal attendee RSVP registrations"
+    },
+    "/meetings/{meetingId}": {
+      "schema": {
+        "$ref": "#/entities/Meeting"
+      },
+      "description": "Meeting configuration and organizer controls"
+    }
+  }
+}

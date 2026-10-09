@@ -20,11 +20,13 @@ import {
 } from 'lucide-react';
 import { MeetingConfig, AttendanceStatus, Registration } from '../types';
 import { downloadCalendarEvent } from '../utils/calendar';
+import { syncRegistrationToFirestore } from '../firebase';
 
 interface RegistrationFormProps {
   meeting: MeetingConfig;
   onSubmitSuccess?: (newRegistration: Registration) => void;
   onBackToDashboard?: () => void;
+  onOpenQrModal?: () => void;
   isStandalone?: boolean;
 }
 
@@ -32,6 +34,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   meeting,
   onSubmitSuccess,
   onBackToDashboard,
+  onOpenQrModal,
   isStandalone = false,
 }) => {
   const [fullName, setFullName] = useState('');
@@ -95,6 +98,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
       const result = await response.json();
       setSubmittedData(result.registration);
+
+      // Cloud backup to Firebase Firestore Enterprise
+      if (result.registration) {
+        syncRegistrationToFirestore(result.registration).catch((e) => console.warn('Firestore sync note:', e));
+      }
 
       // Trigger celebratory confetti
       confetti({
@@ -265,16 +273,30 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       isGoogleFormsStyle ? 'font-sans' : ''
     }`}>
       {/* Top bar controls */}
-      <div className="flex items-center justify-between mb-4">
-        {onBackToDashboard && (
-          <button
-            onClick={onBackToDashboard}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Dashboard</span>
-          </button>
-        )}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Dashboard</span>
+            </button>
+          )}
+
+          {onOpenQrModal && (
+            <button
+              type="button"
+              onClick={onOpenQrModal}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 shadow-sm transition-all cursor-pointer"
+              title="Show QR code for this attendee form"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Form QR Code</span>
+            </button>
+          )}
+        </div>
 
         {/* Style toggle: Google Forms aesthetic vs Modern */}
         <div className="flex items-center gap-2 text-xs text-slate-400 ml-auto">
