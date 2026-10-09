@@ -133,21 +133,54 @@ export default function App() {
   // Keep track of registration count for real-time sound alert
   const previousCountRef = useRef<number | null>(null);
 
-  // Check URL query parameters: if ?view=register or ?view=qr, navigate appropriately
+  // Check URL query parameters, paths, and hash: attach attendee form on any register/form link
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    if (viewParam === 'register' || viewParam === 'form' || viewParam === 'portals') {
-      setViewMode('form');
-    } else if (viewParam === 'calendar') {
-      setViewMode('calendar');
-    } else if (viewParam === 'qr' || viewParam === 'generator' || viewParam === 'qr_generator') {
-      setViewMode('qr_generator');
-    } else if (viewParam === 'attendee_qr' || viewParam === 'form_qr' || viewParam === 'scan') {
-      setIsAttendeeQrModalOpen(true);
-    } else if (viewParam === 'login' || params.get('login') === 'true') {
-      setViewMode('login');
-    }
+    const checkNavigation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      const formParam = params.get('form');
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+
+      // Check for Attendee Registration Form links
+      const isFormRoute = 
+        viewParam === 'register' || 
+        viewParam === 'form' || 
+        viewParam === 'attendee' || 
+        viewParam === 'rsvp' || 
+        viewParam === 'registration' || 
+        viewParam === 'portals' ||
+        formParam === 'attendee' ||
+        formParam === 'true' ||
+        params.has('register') ||
+        params.has('attendee') ||
+        pathname.includes('/register') ||
+        pathname.includes('/form') ||
+        pathname.includes('/attendee') ||
+        hash === '#register' ||
+        hash === '#form' ||
+        hash === '#attendee';
+
+      if (isFormRoute) {
+        setViewMode('form');
+      } else if (viewParam === 'calendar' || pathname.includes('/calendar') || hash === '#calendar') {
+        setViewMode('calendar');
+      } else if (viewParam === 'qr' || viewParam === 'generator' || viewParam === 'qr_generator' || hash === '#qr') {
+        setViewMode('qr_generator');
+      } else if (viewParam === 'attendee_qr' || viewParam === 'form_qr' || viewParam === 'scan' || hash === '#attendee_qr') {
+        setIsAttendeeQrModalOpen(true);
+      } else if (viewParam === 'login' || params.get('login') === 'true' || hash === '#login') {
+        setViewMode('login');
+      }
+    };
+
+    checkNavigation();
+    window.addEventListener('popstate', checkNavigation);
+    window.addEventListener('hashchange', checkNavigation);
+    return () => {
+      window.removeEventListener('popstate', checkNavigation);
+      window.removeEventListener('hashchange', checkNavigation);
+    };
   }, []);
 
   // Fetch live registrations & stats from backend
@@ -684,6 +717,7 @@ export default function App() {
               onOpenQrEditor={handleOpenQrEditor}
               onOpenQrGenerator={() => setViewMode('qr_generator')}
               onOpenAttendeeQrModal={() => setIsAttendeeQrModalOpen(true)}
+              onOpenAttendeeForm={() => setViewMode('form')}
               canEditQr={currentUser?.isAdmin || false}
             />
           </div>

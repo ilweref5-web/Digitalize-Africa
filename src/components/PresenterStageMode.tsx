@@ -58,24 +58,29 @@ export const PresenterStageMode: React.FC<PresenterStageModeProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const origin = window.location.origin;
+    const isLocal = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const publicUrl = meeting.sharedAppUrl || 'https://ais-pre-k2y4juk2g726fowugvfirf-408722122406.europe-west3.run.app';
+    const origin = isLocal ? publicUrl : (window.location.origin || publicUrl);
     let target = '';
 
     if (qrConfig.mode === 'registration_hub') {
-      const url = new URL(window.location.href);
+      const url = new URL(origin);
       url.searchParams.set('view', 'register');
+      url.searchParams.set('form', 'attendee');
       target = url.toString();
     } else if (qrConfig.mode === 'google_form_direct') {
-      target = qrConfig.googleFormsUrl || `${origin}?view=register`;
+      target = qrConfig.googleFormsUrl || `${origin}?view=register&form=attendee`;
     } else if (qrConfig.mode === 'portal_links') {
-      const url = new URL(window.location.href);
+      const url = new URL(origin);
       url.searchParams.set('view', 'portals');
       target = url.toString();
     } else if (qrConfig.mode === 'custom_url') {
       target = qrConfig.customUrl || origin;
     } else {
-      const url = new URL(window.location.href);
+      const url = new URL(origin);
       url.searchParams.set('view', 'register');
+      url.searchParams.set('form', 'attendee');
       target = url.toString();
     }
 
@@ -201,7 +206,7 @@ export const PresenterStageMode: React.FC<PresenterStageModeProps> = ({
 
             <div className="mt-4 flex items-center gap-2 text-sm sm:text-base font-semibold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-5 py-2 rounded-full">
               <Smartphone className="w-5 h-5 animate-bounce" />
-              <span>Point cell phone camera at screen to register</span>
+              <span>Scan to Open Attendee Registration Form (iPhone &amp; Android)</span>
             </div>
 
             {/* Partner Portals Bar */}

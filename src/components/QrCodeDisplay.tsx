@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   MessageCircle,
   Award,
-  Lock
+  Lock,
+  FileText
 } from 'lucide-react';
 import { MeetingConfig } from '../types';
 
@@ -24,6 +25,7 @@ interface QrCodeDisplayProps {
   onOpenFullscreenQr?: () => void;
   onOpenQrGenerator?: () => void;
   onOpenAttendeeQrModal?: () => void;
+  onOpenAttendeeForm?: () => void;
   canEditQr?: boolean;
 }
 
@@ -33,13 +35,16 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
   onOpenQrEditor,
   onOpenQrGenerator,
   onOpenAttendeeQrModal,
+  onOpenAttendeeForm,
   canEditQr = false,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [qrSize, setQrSize] = useState<'md' | 'lg' | 'xl'>('lg');
   const [targetUrl, setTargetUrl] = useState<string>('');
-  const [useCurrentOrigin, setUseCurrentOrigin] = useState<boolean>(true);
+  const isLocalhost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const [useCurrentOrigin, setUseCurrentOrigin] = useState<boolean>(!isLocalhost);
 
   const qrConfig = meeting.qrConfig || {
     mode: 'registration_hub',
@@ -77,9 +82,10 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
       } else if (qrConfig.mode === 'registration_hub') {
         const url = new URL(baseOrigin);
         url.searchParams.set('view', 'register');
+        url.searchParams.set('form', 'attendee');
         finalUrl = url.toString();
       } else if (qrConfig.mode === 'google_form_direct') {
-        finalUrl = qrConfig.googleFormsUrl || `${baseOrigin}?view=register`;
+        finalUrl = qrConfig.googleFormsUrl || `${baseOrigin}?view=register&form=attendee`;
       } else if (qrConfig.mode === 'portal_links') {
         const url = new URL(baseOrigin);
         url.searchParams.set('view', 'portals');
@@ -89,10 +95,11 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
       } else {
         const url = new URL(baseOrigin);
         url.searchParams.set('view', 'register');
+        url.searchParams.set('form', 'attendee');
         finalUrl = url.toString();
       }
     } catch {
-      finalUrl = `${baseOrigin}?view=register`;
+      finalUrl = `${baseOrigin}?view=register&form=attendee`;
     }
 
     setTargetUrl(finalUrl);
@@ -170,6 +177,18 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Open Attached Form directly */}
+            {onOpenAttendeeForm && (
+              <button
+                onClick={onOpenAttendeeForm}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 hover:text-white border border-indigo-500/40 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                title="Open the live attendee registration form attached to this QR code"
+              >
+                <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Open Attached Form</span>
+              </button>
+            )}
+
             {/* Open Dedicated Attendee Form QR Modal */}
             {onOpenAttendeeQrModal && (
               <button
@@ -236,9 +255,10 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
         {/* Target URL Domain Switcher */}
         <div className="mb-2 flex items-center justify-between flex-wrap gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-slate-400">
-            <span className="font-semibold text-slate-300">Destination:</span>
-            <span className="font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30 text-[11px]">
-              Attendee Form (?view=register)
+            <span className="font-semibold text-slate-300">Attached:</span>
+            <span className="font-mono text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30 text-[11px] flex items-center gap-1">
+              <FileText className="w-3 h-3 text-emerald-400" />
+              Attendee Registration Form (?view=register)
             </span>
           </div>
 

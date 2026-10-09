@@ -340,13 +340,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             ? 'bg-white rounded-t-xl mx-3 mt-3 border border-slate-200 shadow-sm' 
             : 'border-b border-slate-800'
         }`}>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
               isGoogleFormsStyle 
                 ? 'bg-purple-100 text-purple-800' 
                 : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
             }`}>
-              Meeting RSVP &amp; Registration
+              Official Attendee Registration
+            </span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+              isGoogleFormsStyle
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                : 'text-emerald-300 bg-emerald-950/60 border-emerald-500/30'
+            }`}>
+              Attached to Meeting QR Code
             </span>
           </div>
 
